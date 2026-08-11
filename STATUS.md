@@ -173,3 +173,165 @@ BYOM labels those receipts `origin: "reference"`, never `"api"`, with a note tha
 the figures aren't API-reported. Asserted by test. It also reproduces both PRD §5.3
 audio defects on purpose, so BYOM's trim and normalize-warning behaviour is
 demonstrated rather than only unit-tested.
+
+---
+---
+
+# FINAL HANDOFF · 2026-08-11
+
+> Supersedes the interim handoff above, which was written at the first commit.
+
+## Live now
+
+| | |
+|---|---|
+| **Staging app** | https://byom-staging.fly.dev |
+| **Repo** | https://github.com/dg-coreylweathers/byom (public, `main`, 40 files) |
+| **Fly app** | `byom-staging`, `deepgram` org, scale-to-zero |
+| **Tests** | 81 passing, no live credential required (`npm test`) |
+
+Verified against the live deployment: 87 submitted → 62 billed, receipt labelled
+`origin: reference`, 338ms of leading silence trimmed with the 12ms pre-roll kept,
+peak 0 dBFS firing the normalize warning, 40 wire frames in protocol order,
+`flux-marcus-en` absent from the voice list, per-IP rate limit cutting over at 5
+requests, and the real staging key absent from every response and from every pushed
+commit.
+
+## What shipped
+
+**Steps 1–5 all completed.** One step (4) completed differently than specified; see
+Departures below.
+
+- **Step 1 — the repo** (PRD §5). Server, transport via the official SDK, shared
+  strip contract, audio pipeline, rate limiting, static serving. All of PRD §5.4's
+  acceptance checklist passes, including the last checkbox (no vendor names in UI
+  chrome) once the UI landed.
+- **Step 1b — reference upstream.** A real `/v2/speak` server, added so the deploy
+  and the tests exercise the actual transport instead of an injected double.
+- **Step 1c — UI.** talk.deepgram.com skin with design tokens read from the live
+  site, precision content per PRD §3.
+- **Step 2 — review.** `devrel-review` run; four findings, all fixed with tests.
+  `REVIEW.md`.
+- **Step 3 — content.** Nine full drafts in `/content`, eight distinct keyword lanes.
+- **Step 4 — deploy.** Live, staging-only.
+- **Step 5 — push.** Public.
+
+## The five bugs this build found in its own work
+
+Listed because they are the substance of what the process bought, and four of the
+five were found by a mechanism rather than by reading the code.
+
+1. **The API key leaked through the error path.** The 502 handler interpolated the
+   upstream error message verbatim; an upstream failure can carry the credential.
+   Caught by a test, not review — the happy path never touches that line. Fixed with
+   `lib/redact.js`.
+2. **Audio arrived as `Blob`, was classified as a control frame, and was dropped.**
+   `Blob.type` is `""`. Produced HTTP 200, correct character accounting, and a
+   44-byte header-only WAV. The worst possible failure shape for this tool. Only
+   findable against a real transport (SDK_WATCH W-004).
+3. **`sendSpeak`/`sendFlush` need an explicit `type`.** Omitting it opens the socket,
+   gets frames accepted, and draws "unhandled message type" warnings instead of
+   synthesis, so the turn never completes. TypeScript enforces the field; plain JS
+   does not (W-005).
+4. **An absent `Warning` frame was read as a reporting failure.** On clean text
+   there is nothing to warn about, so BYOM was flagging a spurious disagreement.
+5. **An audio-less turn reported success.** Distinct from #2: fixing that cause did
+   not add a guard against the class. Found by the review (B2).
+
+## Placeholders
+
+| Item | Current value | Needs |
+|---|---|---|
+| Rate limits | 20/min, 500/day, 5/IP/min, 2 concurrent | Real numbers with the spend cap (F-002) |
+| Spend cap | **none** | F-002. Interim backstop only: scale-to-zero when idle |
+| CDN | none | PRD §10 requires one (F-002) |
+| API key on the deploy | **placeholder, not a real credential** | Real restricted TTS-only key at cutover (D-012, F-002) |
+| Upstream | in-process reference implementation | A staging endpoint (F-001) |
+| Design spacing scale | inferred | Marked `[verify]` in `styles.css` (D-009) |
+
+## Departures from the goal, all logged
+
+1. **PRD §5.2's "zero runtime dependencies" was overridden** in favour of the
+   official SDK, per the goal's SDK-first rule (D-001). Two dependencies: the SDK,
+   and `ws` for the reference upstream's server.
+2. **Fly org reversed from `personal` to `deepgram`** (D-011). `personal` is
+   billing-blocked, and the premise was wrong regardless — the shared org already
+   hosts the other launch demos.
+3. **The real staging key was not deployed** (D-012). A placeholder was set via
+   `fly secrets set` instead. The instance talks only to a loopback reference
+   upstream that requires the variable present but does not validate it, so shipping
+   the real credential would expose a live secret for no functionality. This follows
+   the intent of the goal's key rule over its letter. Cutover commands are in D-012.
+4. **The skin is dark-only**, a deliberate departure from PRD §3's
+   `prefers-color-scheme` ask, because a light variant would break the required skin
+   match (D-009). The one place the two documents cannot both be satisfied.
+
+## FLAGS.md — 11 items needing an owner
+
+**Time-critical before Aug 12 GA**
+- **F-004** — Launch WER guidance names four voices that do not exist in the
+  shipping catalog (meghan, conor, wes, brittany). Only rufus and marcus exist, and
+  marcus is defective. Affects every team producing launch audio.
+- **F-005** — Aura→Flux migration guide should be reopened; two breaking changes
+  post-date it and the GA changelog is scheduled to link it.
+
+**Blocking specific deliverables**
+- **F-001** — No staging base URL exists. Blocks live verification and unit 3's
+  video capture.
+- **F-002** — Hosting: org confirmation, CDN, restricted key, spend cap.
+- **F-011** — Partner-dev piece: the partner and gap could not be verified. Do not
+  publish unconfirmed.
+- **F-007** — Agent-operator persona is absent from the canonical reference. Draft
+  complete, marked do-not-publish.
+
+**Route and continue**
+- **F-006** — Two spec documentation findings, including the `INPUT_MARKUP_STRIPPED`
+  example that does not add up. BYOM's preset is arithmetically correct and is
+  offered as a replacement.
+- **F-008** — Server contract: can one turn emit multiple `SpeechMetadata` frames?
+- **F-009** — Unit 2's remaining `[verify]`: free-credit amount and signup terms.
+- **F-010** — Unit 4's two `[verify]` items on markup/normalization ordering.
+- **F-003** — Tooling: two named skills and `skill-creator` are not installed.
+
+## SDK_WATCH.md — 5 hand-rolled workarounds
+
+| | Gap | Why it matters |
+|---|---|---|
+| W-001 | `SpeakV2Warning` has no `stripped[]`, no `source`, and does not list `INPUT_MARKUP_STRIPPED` | This is the exact payload the tool exists to render |
+| W-002 | No `Interrupt`/`Clear` type | Low risk here (single-shot); real for any barge-in client |
+| W-003 | Voice allow-list kept locally rather than derived from the enum | Deriving would silently re-admit `flux-marcus-en` on regeneration |
+| W-004 | Binary audio arrives as `Blob`, undocumented, async-only | Misclassification silently drops audio |
+| W-005 | `sendSpeak`/`sendFlush` do not inject `type` | Fails as a timeout pointing nowhere near the cause |
+
+Each entry names what to look for in release notes before deleting the workaround.
+
+## Skills modified
+
+**None.** The goal directs using `skill-creator` to add a missing check that a
+codebase's shape clearly needs; `skill-creator` is not installed (F-003, D-005).
+
+Worth recording what would have been proposed: the review checklist's binary-format
+and empty-result checks are written for CLI tools that write files, and both applied
+cleanly to a server returning base64 audio over HTTP. Two of the four review
+findings came from them. That generalization belongs in the skill rather than in this
+repo's history, and it could not be made here.
+
+## Still blocked
+
+**One thing only: unit 3's video capture.** PRD §6 requires a real capture against
+the deployed tool and explicitly permits no mock. The tool is deployed, but its
+figures currently come from the reference upstream and are labelled as such — so a
+capture made now would either show the reference label (dishonest for launch content
+implying real synthesis) or require hiding it (worse). Needs F-001 resolved first.
+
+Everything else is either done or is a flagged decision waiting on a human.
+
+## If you pick this up next
+
+1. Read `FLAGS.md` top to bottom — F-004 and F-005 are the two with an Aug 12 clock
+   on them and neither is DevRel's to fix.
+2. Get a staging host (F-001). Then the three commands in D-012, and the receipt
+   label switches from `reference` to `api` with no code change.
+3. Confirm the Fly org (F-002/D-011) before anyone links the staging URL publicly.
+4. Do not publish the agent-operator or partner-dev pieces until F-007 and F-011
+   are resolved. Everything else in `/content` is publish-ready.
