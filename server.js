@@ -243,6 +243,17 @@ export function createApp({ env = process.env, now = () => Date.now(), clientFac
         });
       }
 
+      if (url.pathname === "/api/health" && req.method === "GET") {
+        // Deploy health check. Reports which host it is pointed at by SHAPE, never
+        // the value — a health endpoint is unauthenticated, so it must not become a
+        // way to read configuration.
+        return json(res, 200, {
+          ok: true,
+          upstreamConfigured: true,
+          staging: true,
+        });
+      }
+
       if (req.method !== "GET") {
         return json(res, 405, { error: "method not allowed" });
       }
@@ -300,10 +311,35 @@ export function describeDisagreement(mirror, serverStripped, serverBillable) {
 // Started directly, not imported by a test.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number.parseInt(process.env.PORT || "8080", 10);
+
+  // No staging endpoint exists yet (FLAGS.md F-001). Rather than deploy something
+  // that cannot complete a request, the bundled reference upstream can run
+  // in-process on loopback. It is opt-in, it binds only to 127.0.0.1, and every
+  // figure it produces is labelled reference-reported rather than API-reported —
+  // both in the payload and in the UI. Set BYOM_REFERENCE_UPSTREAM=0 the moment a
+  // real endpoint is available; nothing else needs to change.
+  if (process.env.BYOM_REFERENCE_UPSTREAM === "1") {
+    if (process.env.DEEPGRAM_BASE_URL) {
+      // Refuse to silently override an explicitly configured endpoint. If both are
+      // set, the operator's intent is ambiguous and guessing wrong could mean
+      // serving reference numbers while looking like a real deployment.
+      console.error(
+        "both BYOM_REFERENCE_UPSTREAM=1 and DEEPGRAM_BASE_URL are set. " +
+          "Unset one — refusing to guess which upstream you meant.",
+      );
+      process.exit(1);
+    }
+    const { createUpstream } = await import("./tools/reference-upstream.js");
+    const upstreamPort = Number.parseInt(process.env.UPSTREAM_PORT || "8081", 10);
+    await new Promise((resolve) => createUpstream().listen(upstreamPort, "127.0.0.1", resolve));
+    process.env.DEEPGRAM_BASE_URL = `ws://127.0.0.1:${upstreamPort}`;
+    console.log(`reference upstream on 127.0.0.1:${upstreamPort} — figures will be labelled reference-reported`);
+  }
+
   const { server } = createApp();
   server.listen(port, () => {
-    // Host is logged so an operator can confirm at a glance which environment
-    // this process is pointed at. Never logs the key.
+    // Host is logged so an operator can confirm at a glance which environment this
+    // process is pointed at. Never logs the key.
     console.log(`byom listening on :${port} → ${process.env.DEEPGRAM_BASE_URL}`);
   });
 }

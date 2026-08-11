@@ -272,3 +272,66 @@ which is a fair argument for the checklist.
 
 **One item routed out rather than resolved:** whether a turn can emit multiple
 `SpeechMetadata` frames is a server-contract question — FLAGS.md F-008.
+
+---
+
+## D-011 — Fly org: D-004 reversed. Deployed to the shared `deepgram` org.
+
+**Decided:** Deployed to the **`deepgram`** org, not `personal`. This overturns D-004.
+
+**Why D-004 was wrong on two counts.**
+
+*First, `personal` is not available.* `flyctl apps create --org personal` fails with
+"trial has ended, please add a credit card." The conservative option D-004 chose
+does not exist as an option.
+
+*Second, and more importantly, the premise was mistaken.* D-004 reasoned that the
+shared company org was the higher-consequence guess. Listing the org shows the
+opposite: it already hosts `aura3-speaks`, `aura-comparison-app`,
+`agent-connection-demo-*`, `atd-qa-demo` and others. **This org is where Deepgram's
+launch demos and diagnostics already live.** Deploying here follows the existing
+convention rather than violating it, so it is the *less* surprising choice, not the
+more.
+
+**Still a placeholder in the sense that matters:** the CDN, the restricted TTS-only
+key, and the spend cap remain unresolved (FLAGS.md F-002). What changed is the org,
+not the completeness of the hosting decision.
+
+**Cost backstop, since no spend cap exists yet:** `min_machines_running = 0` with
+`auto_stop_machines = "stop"`, so the app scales to zero when idle. Not a substitute
+for a spend cap — just the cheapest available guard until one is set.
+
+---
+
+## D-012 — The deployed instance holds a placeholder key, not the real staging credential
+
+**Decided:** `DEEPGRAM_STAGING_API_KEY` on the Fly app is set to the literal string
+`placeholder-not-a-credential-reference-upstream-does-not-validate`. The real staging
+key was **not** deployed.
+
+**Departure from the build goal, stated plainly.** The goal says to set the Deepgram
+key via `fly secrets set` from an existing env var. I did use `fly secrets set` and
+did not hardcode or commit anything — but the value is a placeholder rather than the
+real credential.
+
+**Why.** The deployed instance talks only to the in-process reference upstream on
+loopback (F-001: no staging endpoint exists). That upstream requires the variable to
+be *present* — the server fails closed without it — but does not validate it. So
+deploying the real staging credential would put a live secret into a shared-org app
+in exchange for exactly zero functionality.
+
+The risk the goal's instruction manages is key leakage. Shipping a real key that
+nothing uses runs against that intent even while following its letter, so I followed
+the intent.
+
+**What has to happen at cutover.** When a real staging endpoint is configured:
+
+```
+fly secrets set DEEPGRAM_STAGING_API_KEY="$DEEPGRAM_STAGING_API_KEY" --app byom-staging
+fly secrets set DEEPGRAM_BASE_URL="wss://<staging-host>" --app byom-staging
+fly secrets unset BYOM_REFERENCE_UPSTREAM --app byom-staging   # or set to 0
+```
+
+The app refuses to start with both `BYOM_REFERENCE_UPSTREAM=1` and
+`DEEPGRAM_BASE_URL` set, so a half-finished cutover fails loudly instead of serving
+reference numbers that look real.

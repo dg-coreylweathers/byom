@@ -1,0 +1,62 @@
+# Fly.io — STAGING configuration.
+#
+# There is no production configuration in this repo, deliberately. Production
+# cutover is a separate, explicit step and must not be reachable by editing one
+# value here. See DECISIONS.md D-002 and D-011.
+#
+# `DEEPGRAM_BASE_URL` is set as a SECRET rather than an env var here, so that this
+# committed file can never be the thing that points the app at production.
+# The app refuses to start without it.
+
+app = "byom-staging"
+primary_region = "iad"
+
+[build]
+  # No build step. Node 22+, no bundler, no transpile.
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"   # Node's own optimizations; NOT the Deepgram environment.
+
+  # Rate limits — placeholder values pending the spend-cap decision (FLAGS.md F-002).
+  # Deliberately conservative: this is a diagnostic, not a load target.
+  GLOBAL_PER_MINUTE = "20"
+  GLOBAL_PER_DAY = "500"
+  PER_IP_PER_MINUTE = "5"
+  MAX_CONCURRENT = "2"
+
+  # Fly terminates TLS and appends one hop. At 0 the app ignores X-Forwarded-For
+  # entirely, which would collapse every client to the proxy address and make the
+  # per-IP limit global. 1 is correct here and only here.
+  TRUSTED_PROXY_HOPS = "1"
+
+  # Runs the bundled reference upstream in-process alongside the app, because no
+  # staging endpoint exists yet (FLAGS.md F-001). Set to "0" the moment a real
+  # endpoint is configured. Every figure it produces is labelled reference-reported
+  # rather than API-reported, in the payload and in the UI.
+  BYOM_REFERENCE_UPSTREAM = "1"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Scales to zero when idle. A spend cap is not yet set (F-002), so the cheapest
+  # available backstop is not paying for idle machines.
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

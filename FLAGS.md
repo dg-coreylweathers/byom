@@ -44,10 +44,10 @@ the conservative option and is flagging it rather than presenting it as settled.
 
 | Item | Placeholder | Needs |
 |---|---|---|
-| Fly.io org | `personal` | Real org call — shared `deepgram` org is the higher-consequence guess, so it was not used |
+| Fly.io org | **`deepgram`** (deployed) | `personal` is billing-blocked (trial ended). The shared org turned out to be the conventional home — it already hosts `aura3-speaks`, `aura-comparison-app`, `agent-connection-demo-*`. Confirm this is where you want it. See D-011. |
 | CDN | none configured | PRD §10 requires deploy behind a CDN |
-| API key scope | staging key, unrestricted | PRD §10 requires a restricted TTS-only key |
-| Spend cap | not set | PRD §10 requires a spend cap; no value is specified anywhere in the PRD |
+| API key scope | **placeholder, not a real credential** | The real staging key was deliberately NOT deployed — the instance talks only to a loopback reference upstream that does not validate it (D-012). PRD §10's restricted TTS-only key is still needed at cutover. |
+| Spend cap | not set | PRD §10 requires a spend cap; no value is specified anywhere in the PRD. Interim backstop only: `min_machines_running = 0` so the app scales to zero when idle. |
 
 **Framing to use with Product, from PRD §8:** BYOM is a migration diagnostic,
 not a second "try it" link — so it ships *alongside* the Playground rather than
