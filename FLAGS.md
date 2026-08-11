@@ -180,3 +180,62 @@ why it is worth answering once, in writing.
 
 The Flux edge case documented on the STT side (repeated `StartOfTurn`, empty
 transcripts) suggests the speak side deserves the same explicit treatment.
+
+---
+
+## F-009 — Unit 2 `[verify]`: free-credit amount and signup terms · 2026-08-11
+
+**Owner needed:** Corey, or whoever owns console signup copy
+
+PRD §6 lists two `[verify]` items on unit 2 (the blog). One is now closed: the repo
+URL is `https://github.com/dg-coreylweathers/byom`.
+
+The other cannot be closed from this repo or the spec: **the current free-credit
+amount and signup terms.** The draft deliberately says "check current terms on the
+console" rather than naming a figure, so it is publishable as-is — but if you want a
+specific number in the copy, someone has to supply the current one. Marked inline in
+the draft with an HTML comment so it is visible to an editor and invisible in render.
+
+Guessing here would be worse than omitting: a stale credit figure in launch copy is
+the kind of error a developer notices at exactly the wrong moment.
+
+---
+
+## F-010 — Unit 4 `[verify]`: markup/normalization pipeline ordering · 2026-08-11
+
+**Owner needed:** API owners — same thread as F-006 and F-008
+
+PRD §6 requires confirming two pipeline-ordering points with API owners before the
+docs guide ships. Neither is resolvable from the spec as written:
+
+1. **Is markup stripped before text normalization?** The guide currently states that
+   it is, because `billable_character_count` is documented as "the input character
+   count with stripped control characters removed," which implies stripping precedes
+   the count. That is an inference, not a confirmation.
+2. **Can normalization itself change the billable count after stripping?** If it can,
+   the guide's ordering statement is incomplete and the arithmetic developers derive
+   from it will occasionally be wrong.
+
+The draft is otherwise publish-ready. These are marked inline as HTML comments.
+
+---
+
+## F-011 — Partner-dev piece: partner and gap need confirming · 2026-08-11
+
+**Owner needed:** Corey (content strategy) + whoever tracks partner integration state
+
+PRD §7 says the partner-dev piece must pick a real, current partner gap rather than
+a hypothetical one, and names three candidates to check: the LiveKit plugin flush
+issue, and the .NET and Rust SDK threads in flight.
+
+The draft targets **LiveKit, on the flush-behavior gap**, chosen because a flush gap
+and a dropped-informational-frame gap are the same class of problem — a plugin layer
+mediating connection-level protocol — so one note addresses both honestly.
+
+**What could not be verified from this repo:** whether that LiveKit flush issue is
+currently open, its state, and whether .NET or Rust is actually the more urgent gap.
+
+**Do not publish until confirmed.** By PRD §7's own acceptance criteria this draft
+fails the "real, current gap" check on its own evidence, and it says so in its
+reviewer notes. If the real gap is .NET or Rust, sections 2–4 port directly; only the
+framing and the flush section need rewriting.
