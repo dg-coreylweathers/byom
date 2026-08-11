@@ -319,3 +319,47 @@ have, on the exact topic the launch is about. See `content/README.md`.
 
 The tool itself is correct and is what produced this table — it is a diagnostic, and
 it found that the thing it was built to demonstrate does not work yet.
+
+### F-012 addendum — expanded matrix, and the inline-control path · 2026-08-11
+
+Further probing widens the finding. **Nothing markup-shaped works.** Full runnable
+set in `SAMPLES.md`.
+
+**Billed as plain text, never stripped, no warning emitted:**
+`<s>` · `<speak>` · `<prosody>` · `<sub>` · `<phoneme>` · `{"speed"}` · `{"pause"}` · `{"break"}`
+
+**Fatal:**
+
+| Input | Error |
+|---|---|
+| `<break time="1s"/>` | `NET-0000` |
+| `<emphasis>` | `NET-0000` |
+| `[pause]` | `NET-0000` |
+| `{"word": …, "pronounce": …}` — **the documented syntax** | `NET-0000` |
+| `{pause}` | `DATA-0002` malformed inline TTS control |
+| `<say-as interpret-as="telephone">` | Runaway: 783 audio frames, no terminator, 60s timeout |
+
+**Two things this adds beyond the original entry:**
+
+1. **The documented inline pronunciation control crashes Flux.** The syntax in
+   `fern/pages/text-to-speech/tips-and-tricks/tts-voice-controls.mdx` —
+   `{"word": "…", "pronounce": "…"}` — returns `NET-0000`. That guide is Aura-2-scoped
+   today, so this may be "not supported on Flux" rather than a regression, but the
+   failure mode is an internal error rather than a clean rejection.
+2. **`DATA-0002` proves inline controls are a live code path.** `{pause}` gets a
+   *proper validation error naming the feature*, not a generic failure. So the
+   machinery exists and nothing reaches it successfully. `controls_applied` —
+   including `breaks_applied` — stayed `0` in every single run.
+
+**Prior art worth pulling in:** `deepgram-docs/REVIEW-pr1092.md` already covers this
+territory and reaches compatible conclusions from the docs side. Notably its **[S4]:
+`INPUT_MARKUP_STRIPPED` appears in no spec file** (action: "confirm with @jherl-dg;
+add to #1090 or drop from docs"). That is very likely the root cause of what F-012
+measures — the warning is documented, is in no spec, and is not implemented. Whoever
+picks up F-012 should read that review first; the two findings are the same gap seen
+from opposite ends, and it also flags `DATA-0002` as undocumented ([S6]).
+
+That review also documents `controls_applied.breaks_applied` as "pause controls that
+took effect" and states inline controls are **in GA scope**. Measured against staging,
+no pause control takes effect and every attempt is billed or fatal. If GA scope still
+includes inline controls, staging is a long way from it.
