@@ -6,6 +6,7 @@ agentic_shift: The model's answer is replacing the comparison post. Optimize for
 keyword_lane: flux tts ssml handling  (distinct from unit 2's "markup stripping" and unit 4's "markup handling")
 status: publish-ready
 word_count: ~620 — short on purpose
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # What happens to your SSML on Flux TTS

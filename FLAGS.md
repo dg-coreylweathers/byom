@@ -239,3 +239,83 @@ currently open, its state, and whether .NET or Rust is actually the more urgent 
 fails the "real, current gap" check on its own evidence, and it says so in its
 reviewer notes. If the real gap is .NET or Rust, sections 2–4 port directly; only the
 framing and the flush section need rewriting.
+
+---
+
+## 🚨 F-012 — Markup is not stripped on staging. It is BILLED, and some tags crash synthesis. · 2026-08-11
+
+**Owner needed:** Flux TTS API owners + launch owner. **This is GA-blocking and GA is
+tomorrow.** Escalate today.
+
+The launch premise is that markup handling shipped as **strip-with-warning**. Against
+`wss://api.staging.deepgram.com/v2/speak`, model `flux-rufus-en`, that is not what
+happens — in either direction.
+
+### What was measured
+
+Same voice, same endpoint, only the input varies. `billed` is
+`SpeechMetadata.billable_character_count` as reported by the API.
+
+| Input | Submitted | Billed | Outcome |
+|---|---|---|---|
+| `Your balance is forty-two dollars.` | 34 | 34 | ✅ fine |
+| `<s>Your balance is forty-two dollars.</s>` | 41 | **41** | ⚠️ tags **billed**, not stripped |
+| `<speak>Your balance is forty-two dollars.</speak>` | 49 | **49** | ⚠️ tags **billed**, not stripped |
+| `Your balance is < forty-two dollars.` | 36 | 36 | ✅ fine (bare `<` is safe) |
+| `Your balance is forty-two dollars.<break time="1s"/>` | — | — | ❌ `Error NET-0000` internal error |
+| `Your balance is <emphasis>forty-two</emphasis> dollars.` | — | — | ❌ `Error NET-0000` internal error |
+| `Your balance is [pause] forty-two dollars.` | — | — | ❌ `Error NET-0000` internal error |
+
+### Two separate defects
+
+**1. Markup that does not crash is billed rather than stripped.** `<s>…</s>` is 7
+characters of markup, and the billable count went from 34 to 41 — the exact tag
+length. **Customers are being charged for markup that the launch says is free.**
+No `INPUT_MARKUP_STRIPPED` warning is emitted, so they have no way to notice.
+
+**2. `<break>`, `<emphasis>`, and bracketed directives return `NET-0000`, "The
+server encountered an internal error."** Before erroring, the connection streams
+runaway audio — one measured case produced **44 seconds of audio for a
+62-character sentence**, then errored at 42.8s. An internal error on ordinary
+input is a stability problem, not just a feature gap.
+
+`<break>` failing is the worst case of the three: it is the single most common tag in
+real prompt libraries.
+
+### Also not observed on staging, contrary to the spec
+
+- **No `Warning` / `INPUT_MARKUP_STRIPPED` frame, ever** — not even for the inputs
+  that succeed and are billed for their tags.
+- **No `SessionMetadata` frame at all.** `Connected` carries `model_name`,
+  `model_version`, `model_uuids` and no `sample_rate`.
+- **`Flushed` is an acknowledgement, not a completion signal.** It arrives ~2ms after
+  `Flush` is sent and up to 4s before audio finishes. `SpeechMetadata` is the real
+  terminator. This is undocumented and is an easy way to build a client that closes
+  the socket before receiving any audio — it cost this build a debugging cycle.
+- **~350ms of head dead air was NOT reproducible.** PRD §5.3 treats it as a known
+  defect; measured trim on staging was 0ms across every successful run. Either it is
+  fixed or it was never in this path. Worth confirming before the launch notes repeat
+  it.
+- **Output headroom IS confirmed.** Measured peak 0.00 to −0.43 dBFS, i.e. at or
+  fractionally under full scale. The normalize warning is warranted.
+
+### Reproduce
+
+```
+git clone https://github.com/dg-coreylweathers/byom && cd byom && npm install
+DEEPGRAM_BASE_URL=wss://api.staging.deepgram.com \
+DEEPGRAM_STAGING_API_KEY=<staging key> node server.js
+# then POST any of the inputs from the table above to /api/speak
+```
+Or use the deployed instance: https://byom-staging.fly.dev — it is pointed at
+staging and shows the verbatim wire log for every request.
+
+### Consequence for this cluster
+
+**All BYOM content is on hold.** Every piece in `/content` asserts strip-with-warning
+behavior and states that markup is not billed. Both claims are currently false on
+staging. Publishing on Aug 12 would ship documentation of behavior the API does not
+have, on the exact topic the launch is about. See `content/README.md`.
+
+The tool itself is correct and is what produced this table — it is a diagnostic, and
+it found that the thing it was built to demonstrate does not work yet.

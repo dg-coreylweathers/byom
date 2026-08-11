@@ -6,6 +6,7 @@ keyword_lane: flux tts markup handling
 status: publish-ready — 2 [verify] items open with API owners (FLAGS.md F-010)
 word_count: 284 body words (PRD cites the prior draft at 269; this is a new draft)
 required_cross_link: Aura → Flux migration guide (present, see below)
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # Markup handling and what gets stripped

@@ -1,5 +1,36 @@
 # Content — BYOM launch cluster
 
+> # 🚨 ALL CONTENT IN THIS DIRECTORY IS ON HOLD — 2026-08-11
+>
+> **Do not publish any of this until FLAGS.md F-012 is resolved.**
+>
+> Every piece here asserts two things that are **currently false** against
+> `wss://api.staging.deepgram.com`, measured with the real staging key:
+>
+> 1. **"Markup is stripped before synthesis and reported via
+>    `INPUT_MARKUP_STRIPPED`."** No such warning frame is ever emitted. Markup that
+>    does not crash is passed through and **billed** — `<s>…</s>` took the billable
+>    count from 34 to 41, exactly the tag length.
+> 2. **"You are not billed for markup."** Customers currently are.
+>
+> Separately, `<break>`, `<emphasis>` and bracketed directives return
+> `Error NET-0000` (internal server error), after streaming runaway audio — one case
+> produced 44 seconds of audio for a 62-character sentence.
+>
+> The **87 → 62 hook is not reproducible against the real API today.** It is
+> arithmetically correct and it is what the documented contract implies; the API just
+> does not do it yet.
+>
+> What is verified and safe: `billable_character_count` arrives and is accurate for
+> clean text, and the no-headroom output issue is real (measured 0.00 to −0.43 dBFS).
+> The ~350ms head dead air was **not** reproducible and should not be repeated in
+> launch notes without re-checking.
+>
+> Nothing here needs rewriting yet — the drafts describe the intended contract
+> correctly. They need the API to match, or they need reframing as forward-looking.
+> That is a call for Corey, not a copy edit.
+
+
 Full drafts, not outlines. Every piece names its target persona and entry point in
 its front matter, per PRD §7's acceptance criteria.
 

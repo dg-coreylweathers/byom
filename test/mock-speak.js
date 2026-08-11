@@ -101,8 +101,28 @@ export function mockClientFactory({ frames, pcm, onConnect } = {}) {
 }
 
 /**
- * The well-behaved sequence: markup stripped, metadata reported, audio, flushed.
- * Numbers match the default preset — 87 submitted, 62 billable, 25 stripped.
+ * The well-behaved sequence.
+ *
+ * **Frame ORDER here matches what staging actually does**, verified by probe:
+ *
+ *     Connected → SpeechStarted → Flushed → audio… → SpeechMetadata
+ *
+ * `Flushed` arrives ~2ms after the Flush is sent and roughly 4s BEFORE the audio
+ * finishes — it acknowledges the flush request, it does not terminate the turn.
+ * `SpeechMetadata` is the terminator, and its `audio_duration_ms` matches the audio
+ * actually delivered.
+ *
+ * The original version of this mock had it backwards (audio → SpeechMetadata →
+ * Flushed), which taught the client to treat `Flushed` as completion. That passed
+ * every test and failed against the real endpoint, closing the socket before any
+ * audio arrived. Kept in this order deliberately so the mock cannot teach that
+ * lesson again.
+ *
+ * Two frames here that staging does NOT currently send — see FLAGS.md F-012:
+ *   - `SessionMetadata` (never observed)
+ *   - `Warning` / `INPUT_MARKUP_STRIPPED` (never observed, even with markup input)
+ * They are retained because they are the documented contract and BYOM must handle
+ * them when they land. Tests that depend on them are testing the spec, not staging.
  */
 export function defaultFrames({ pcm, sampleRate = 24000 } = {}) {
   return [
@@ -120,6 +140,8 @@ export function defaultFrames({ pcm, sampleRate = 24000 } = {}) {
       ],
     },
     { type: "SpeechStarted", speech_id: "mock-speech" },
+    // Ack, not completion. Ordered here on purpose.
+    { type: "Flushed", speech_id: "mock-speech" },
     pcm || makePcm({ sampleRate }),
     {
       type: "SpeechMetadata",
@@ -127,8 +149,9 @@ export function defaultFrames({ pcm, sampleRate = 24000 } = {}) {
       audio_duration_ms: 400,
       input_character_count: 87,
       billable_character_count: 62,
-      controls_applied: { pronunciations_applied: 0, pronunciation_warnings: 0 },
+      // `breaks_applied` is returned by staging but is absent from the SDK's
+      // ControlsApplied type — SDK_WATCH W-006.
+      controls_applied: { pronunciations_applied: 0, breaks_applied: 0, pronunciation_warnings: 0 },
     },
-    { type: "Flushed", speech_id: "mock-speech" },
   ];
 }

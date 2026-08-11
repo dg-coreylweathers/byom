@@ -8,6 +8,7 @@ status: publish-ready
 word_count: ~1,180
 hook: "You pasted 87 characters. We billed 62."
 verify_open: free-credit amount / signup terms (FLAGS.md F-009)
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # Bring the markup you already have

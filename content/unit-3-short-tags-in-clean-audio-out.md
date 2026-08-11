@@ -6,6 +6,7 @@ entry_point: Feed scroll — the clip is the first contact
 status: script and shot list final; NEEDS REAL CAPTURE against the deployed tool
 capture_blocker: no staging endpoint yet (FLAGS.md F-001). PRD §6 explicitly permits no mock.
 hook: "You pasted 87 characters. We billed 62."
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # Tags in, clean audio out

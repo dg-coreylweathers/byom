@@ -6,6 +6,7 @@ agentic_shift: Champions want to build on top, not just read. Their stated failu
 keyword_lane: byom architecture  (no overlap — nobody searches this; it's a linked-to piece, not a found one)
 status: publish-ready
 requires: public repo (satisfied — https://github.com/dg-coreylweathers/byom)
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # How BYOM works, and what broke while building it

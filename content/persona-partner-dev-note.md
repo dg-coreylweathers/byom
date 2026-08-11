@@ -6,6 +6,7 @@ agentic_shift: Journey shape is set entirely by the partner surface. A generic p
 keyword_lane: flux tts markup livekit plugin  (partner-scoped; no overlap with any other piece)
 status: DRAFT — partner gap needs confirmation before publish (FLAGS.md F-011)
 partner_selected: LiveKit (agent plugin), on the flush-behavior gap
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # Markup handling when you're driving Flux TTS from an agent plugin

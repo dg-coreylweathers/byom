@@ -335,3 +335,91 @@ fly secrets unset BYOM_REFERENCE_UPSTREAM --app byom-staging   # or set to 0
 The app refuses to start with both `BYOM_REFERENCE_UPSTREAM=1` and
 `DEEPGRAM_BASE_URL` set, so a half-finished cutover fails loudly instead of serving
 reference numbers that look real.
+
+---
+
+## D-013 — Pointed at real staging with the real key. Reverses D-012.
+
+**Decided:** `DEEPGRAM_BASE_URL=wss://api.staging.deepgram.com` and the real
+`DEEPGRAM_STAGING_API_KEY`, both set via `fly secrets set` on `byom-staging`, and
+`BYOM_REFERENCE_UPSTREAM=0`. D-012's placeholder-key decision is reversed on explicit
+instruction.
+
+**How the staging host was found.** It was not in the environment (F-001), and I did
+not guess it — guessing a hostname and sending a live credential to it is not an
+acceptable way to find an endpoint. It came from this machine's own repos:
+
+- `deepgram-python-sdk/tests/manual/speak/v2/connect/*.py` — the SDK's own manual
+  `speak/v2` tests target it, with `DEEPGRAM_BASE_URL=wss://api.staging.deepgram.com.
+  Defaults to production.`
+- `cli/src/deepctl/main.py` — offers it as the base-URL override example
+- `buzz-in/` — a sibling project with a recorded `✅ HTTP 200` against it
+
+So the host is corroborated by three independent internal sources, including the
+SDK's tests for this exact endpoint.
+
+**Still staging, not production.** `api.staging.deepgram.com` is not in
+`PRODUCTION_HOSTS`, so `validateBaseUrl` accepts it while continuing to refuse
+`api.deepgram.com`. The hard constraint holds unchanged.
+
+**Why D-012 is safe to reverse.** D-012's reasoning was that shipping a live
+credential bought nothing, because the app talked only to a loopback reference
+upstream that never validated it. That is no longer true: the app now talks to real
+staging, where the key is required and used. The reasoning expired; the decision
+follows.
+
+---
+
+## D-014 — `Flushed` is an acknowledgement, not a terminator. The mock had it backwards.
+
+**Decided:** `SpeechMetadata` terminates the turn. `Flushed` is logged and otherwise
+ignored. Added an idle watchdog that resolves — not rejects — when audio stops without
+a terminator.
+
+**What the real endpoint does**, measured:
+
+```
+270ms  open
+274ms  Connected      (model_name, model_version, model_uuids — no sample_rate)
+343ms  SpeechStarted
+344ms  Flushed         ← 2ms after Flush was sent
+…      audio frames streaming …
+4475ms SpeechMetadata  ← audio_duration_ms 4080, matches the audio delivered
+```
+
+`Flushed` arrives ~2ms after the flush request and roughly 4 seconds before the audio
+finishes. Treating it as completion closed the socket before a single audio frame
+arrived, which surfaced as "no audio frames arrived" — a confusing symptom pointing at
+a correct server.
+
+**The mock taught this wrong, and that is the lesson.** `test/mock-speak.js` and
+`tools/reference-upstream.js` both sent `Flushed` last, so `Flushed`-as-terminator
+passed every test and failed against the real endpoint. Both are now ordered
+faithfully, with comments saying why, so the mock cannot re-teach it. This is the
+sharper version of D-007's point: a test double's fidelity determines which bugs you
+are *able* to find, and an unfaithful one actively teaches wrong behavior.
+
+**Why the watchdog resolves rather than rejects.** PRD §5.4 requires the receipt to
+read `billable_character_count` and to "say explicitly when it cannot." A missing
+terminator is therefore a reportable condition, not a failure — rejecting would throw
+away real audio and a usable local projection. It resolves, falls back to the local
+figure, and pushes a `TURN_NOT_TERMINATED` warning so the UI states the condition
+rather than quietly presenting a local number as reported.
+
+---
+
+## D-015 — All content placed on hold rather than edited
+
+**Decided:** Every file in `/content` is stamped `HOLD` in its front matter and
+`content/README.md` carries a blocking banner. Nothing was rewritten.
+
+**Why not rewrite.** The drafts describe the documented contract accurately. The API
+does not currently implement it (F-012): markup is not stripped, it is billed, and
+several tags return an internal error. That is not a copy problem, and "fixing" the
+copy would mean either documenting broken behavior as intended or silently dropping
+the launch's central claim.
+
+Whether these ship as-is once the API is fixed, ship reframed as forward-looking, or
+slip is a launch call for Corey. The drafts are complete and ready for any of those
+outcomes; pre-empting the decision by editing them would destroy the version that is
+correct if the API is fixed before GA.

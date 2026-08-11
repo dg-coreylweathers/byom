@@ -217,19 +217,31 @@ export function createUpstream({ fault = false } = {}) {
         const a = analyze(text);
         const samples = synthesizeTone(a.clean, sampleRate);
 
+        // ORDER MATTERS, and this order is the one staging actually uses:
+        //   SpeechStarted → Flushed (ack) → audio… → SpeechMetadata (terminator)
+        //
+        // The first version of this file sent Flushed last, which taught the client
+        // that Flushed means "turn complete." That passed every test and then failed
+        // against the real endpoint by closing the socket before any audio arrived.
+        // A reference implementation that gets the ordering wrong is worse than no
+        // reference implementation, so this is deliberately faithful.
         send({ type: "SpeechStarted", speech_id: "ref-speech" });
+        send({ type: "Flushed", speech_id: "ref-speech" });
+
         for (const frame of chunk(samples)) {
           if (ws.readyState === ws.OPEN) ws.send(frame, { binary: true });
         }
+
         send({
           type: "SpeechMetadata",
           speech_id: "ref-speech",
           audio_duration_ms: Math.round((samples.length / sampleRate) * 1000),
           input_character_count: a.submitted,
           billable_character_count: a.billed,
-          controls_applied: { pronunciations_applied: 0, pronunciation_warnings: 0 },
+          // `breaks_applied` mirrors what staging returns; it is absent from the
+          // SDK's ControlsApplied type (SDK_WATCH W-006).
+          controls_applied: { pronunciations_applied: 0, breaks_applied: 0, pronunciation_warnings: 0 },
         });
-        send({ type: "Flushed", speech_id: "ref-speech" });
         pending = null;
         return;
       }

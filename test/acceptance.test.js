@@ -176,6 +176,8 @@ test("the receipt reads billable_character_count from SpeechMetadata", async (t)
 
 test("the receipt says explicitly when it cannot read the API's number", async (t) => {
   // Same sequence, minus SpeechMetadata.
+  // Drop SpeechMetadata, which is both the billable source and the terminator, so
+  // the turn ends via the idle watchdog instead.
   const frames = defaultFrames({ pcm: makePcm() }).filter((f) => Buffer.isBuffer(f) || f.type !== "SpeechMetadata");
   const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
   const { body } = await c.post("/api/speak", { text: DEFAULT_PRESET });
@@ -299,6 +301,8 @@ test("the wire log shows frames verbatim in protocol order", async (t) => {
   assert.deepEqual(seqs, [...seqs].sort((a, b) => a - b), "seq must be monotonic");
 
   const types = body.wire.map((e) => e.type);
+  // Order is staging's real order: Flushed is an ack before the audio, and
+  // SpeechMetadata terminates the turn.
   assert.deepEqual(types, [
     "Speak",
     "Flush",
@@ -306,9 +310,9 @@ test("the wire log shows frames verbatim in protocol order", async (t) => {
     "SessionMetadata",
     "Warning",
     "SpeechStarted",
+    "Flushed",
     "audio",
     "SpeechMetadata",
-    "Flushed",
   ]);
 
   // Outbound frames are recorded too, so the log is a complete transcript.
@@ -330,7 +334,7 @@ test("audio delivered as a Blob is treated as audio, not as a control frame", as
     { type: "Connected" },
     { type: "SessionMetadata", sample_rate: 24000 },
     new Blob([pcm]),
-    { type: "Flushed" },
+    { type: "SpeechMetadata", speech_id: "s", audio_duration_ms: 120, input_character_count: 5, billable_character_count: 5, controls_applied: { pronunciations_applied: 0, breaks_applied: 0, pronunciation_warnings: 0 } },
   ];
   const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
   const { body } = await c.post("/api/speak", { text: "hello" });
@@ -357,7 +361,7 @@ test("multiple Blob frames keep their arrival order", async (t) => {
     { type: "SessionMetadata", sample_rate: sampleRate },
     mk(1000, 40),
     mk(20000, 40),
-    { type: "Flushed" },
+    { type: "SpeechMetadata", speech_id: "s", audio_duration_ms: 80, input_character_count: 5, billable_character_count: 5, controls_applied: { pronunciations_applied: 0, breaks_applied: 0, pronunciation_warnings: 0 } },
   ];
   const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
   const { body } = await c.post("/api/speak", { text: "hello" });
@@ -374,7 +378,7 @@ test("an unrecognized frame still reaches the log", async (t) => {
     { type: "Connected" },
     { type: "SomethingNew", detail: "from a future server" },
     makePcm({ leadingSilenceMs: 0, toneMs: 50 }),
-    { type: "Flushed" },
+    { type: "SpeechMetadata", speech_id: "s", audio_duration_ms: 50, input_character_count: 5, billable_character_count: 5, controls_applied: { pronunciations_applied: 0, breaks_applied: 0, pronunciation_warnings: 0 } },
   ];
   const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
   const { body } = await c.post("/api/speak", { text: "hello" });
@@ -659,7 +663,7 @@ test("a zero-byte audio frame is also rejected", async (t) => {
     { type: "Connected" },
     { type: "SessionMetadata", sample_rate: 24000 },
     Buffer.alloc(0),
-    { type: "Flushed" },
+    { type: "SpeechMetadata", speech_id: "s", audio_duration_ms: 0, input_character_count: 5, billable_character_count: 5, controls_applied: { pronunciations_applied: 0, breaks_applied: 0, pronunciation_warnings: 0 } },
   ];
   const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
   const { res, body } = await c.post("/api/speak", { text: "hello" });

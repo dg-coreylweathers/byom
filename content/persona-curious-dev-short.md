@@ -5,6 +5,7 @@ format: Short-form video only — no long-form companion
 agentic_shift: Awareness collapses straight to first code. They don't read; they screenshot and prompt their coding agent.
 keyword_lane: none — deliberately not competing for search
 status: publish-ready (extends unit 3's capture)
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # Curious dev: the second cut

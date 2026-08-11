@@ -5,6 +5,7 @@ format: Ops runbook, not a pitch
 agentic_shift: Failure mode is a cost/latency wall post-migration, not the migration decision itself
 keyword_lane: flux tts prompt library audit
 status: publish-ready
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 # Auditing a prompt library for markup before cutover

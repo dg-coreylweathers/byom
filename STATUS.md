@@ -335,3 +335,83 @@ Everything else is either done or is a flagged decision waiting on a human.
 3. Confirm the Fly org (F-002/D-011) before anyone links the staging URL publicly.
 4. Do not publish the agent-operator or partner-dev pieces until F-007 and F-011
    are resolved. Everything else in `/content` is publish-ready.
+
+---
+
+# ADDENDUM · 2026-08-11 — pointed at real staging
+
+The deploy and the local runs now go against **`wss://api.staging.deepgram.com`**
+with the real staging key. The reference upstream is off. Receipts carry
+`origin: "api"`.
+
+**Staging host discovery.** It was not in the environment. I did not guess it —
+sending a live credential to a guessed hostname is not acceptable. It came from this
+machine's repos: the Python SDK's own `tests/manual/speak/v2/connect/*` target it,
+the CLI documents it as the base-URL override, and a sibling project has a recorded
+200 against it. Three independent internal sources (D-013).
+
+## Verified working against the real API
+
+| | |
+|---|---|
+| Clean text | `billed 62`, **`origin: api`**, `inputCount: 62` from the API |
+| Audio | 3.6–4.4s, matching `audio_duration_ms` |
+| Peak | 0.00 to −0.43 dBFS — **no headroom, PRD §5.3 confirmed**, normalize warning fires |
+| Key | held server-side, absent from every response and from git history |
+| Live | https://byom-staging.fly.dev |
+
+## Two of my own bugs the real API exposed
+
+1. **`Flushed` is an acknowledgement, not a terminator** (D-014). It arrives ~2ms
+   after `Flush` and ~4s before audio finishes. `SpeechMetadata` is the real
+   terminator. My code closed the socket on `Flushed` and reported "no audio frames
+   arrived" against a correctly-functioning server.
+2. **My mock taught me that bug.** Both the mock and the reference upstream sent
+   `Flushed` last, so `Flushed`-as-terminator passed all 81 tests. Both are now
+   ordered faithfully with comments explaining why. The sharper version of the
+   lesson from step 1b: an unfaithful double doesn't just fail to catch bugs, it
+   actively teaches wrong behavior.
+
+## 🚨 The finding that changes the launch — F-012
+
+The launch premise is strip-with-warning. Staging does neither, and it is worse
+than a missing feature:
+
+| Input | Submitted | Billed | Outcome |
+|---|---|---|---|
+| `Your balance is forty-two dollars.` | 34 | 34 | ✅ |
+| `<s>…</s>` | 41 | **41** | ⚠️ **tags billed, not stripped** |
+| `<speak>…</speak>` | 49 | **49** | ⚠️ **tags billed, not stripped** |
+| `<break time="1s"/>` | — | — | ❌ `NET-0000` internal error |
+| `<emphasis>` | — | — | ❌ `NET-0000` internal error |
+| `[pause]` | — | — | ❌ `NET-0000` internal error |
+
+- **Markup is billed, not stripped.** `<s>…</s>` moved the billable count 34 → 41,
+  exactly the tag length. **Customers are charged for markup the launch says is free.**
+- **No `INPUT_MARKUP_STRIPPED` frame is ever emitted**, so nobody can notice.
+- **`<break>` — the most common tag in real prompt libraries — returns an internal
+  server error**, after streaming runaway audio (44s of audio for a 62-character
+  sentence in one measured case).
+- **No `SessionMetadata` frame** on any request.
+- **The ~350ms head dead air did NOT reproduce.** Measured 0ms trim on every
+  successful run. PRD §5.3 treats it as known; it should be re-checked before launch
+  notes repeat it.
+
+**All content is on hold** (D-015). Every piece asserts strip-with-warning and
+"markup is not billed"; both are currently false. Files are stamped, `content/README.md`
+has a blocking banner, and nothing was rewritten — the drafts are correct about the
+documented contract, and whether they ship as-is, ship reframed, or slip is a launch
+call, not a copy edit.
+
+**The 87 → 62 hook does not reproduce against the real API today.** The arithmetic is
+right and matches the documented contract. The API just doesn't do it yet.
+
+## What this says about the tool
+
+BYOM is a diagnostic, and pointed at the real endpoint it found that the behavior it
+was built to demonstrate is not implemented, that some markup crashes synthesis, and
+that customers are being billed for tags. That is the tool working — but it means the
+cluster's central claim cannot be published tomorrow without the API changing first.
+
+New: **F-012** (GA-blocking), **W-006** (`breaks_applied` returned but untyped),
+**D-013/D-014/D-015**.

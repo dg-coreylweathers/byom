@@ -81,8 +81,13 @@ test("the wire log records the real protocol order, including binary frames", as
   assert.ok(types.includes("Connected"));
   assert.ok(types.includes("SessionMetadata"));
   assert.ok(types.includes("Warning"));
-  assert.ok(types.includes("SpeechMetadata"));
-  assert.equal(types.at(-1), "Flushed");
+  // Staging's real order: Flushed acknowledges the flush before the audio;
+  // SpeechMetadata terminates the turn and comes last.
+  const flushedAt = types.indexOf("Flushed");
+  const firstAudio = types.indexOf("audio");
+  assert.ok(flushedAt > -1 && firstAudio > -1);
+  assert.ok(flushedAt < firstAudio, "Flushed is an ack that precedes the audio");
+  assert.equal(types.at(-1), "SpeechMetadata", "SpeechMetadata terminates the turn");
 
   // Real streaming produces multiple audio frames, not one blob.
   const audioFrames = body.wire.filter((e) => e.binary);

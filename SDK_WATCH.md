@@ -147,6 +147,37 @@ the discriminator, at which point passing it explicitly stays harmless.
 
 ---
 
+## W-006 — `controls_applied.breaks_applied` is returned but not typed
+
+**File:** none — no workaround needed, recorded so it is not lost.
+
+**Gap.** Staging returns `controls_applied` as:
+
+```json
+{ "pronunciations_applied": 0, "breaks_applied": 0, "pronunciation_warnings": 0 }
+```
+
+The SDK's `SpeakV2SpeechMetadata.ControlsApplied` declares only
+`pronunciations_applied` and `pronunciation_warnings`. **`breaks_applied` is absent
+from the typed surface.**
+
+This is the phantom-field shape from the review skill's known-traps ledger, in the
+response direction: the server sends a field the spec never modeled, so it never
+becomes a typed SDK property and a typed consumer cannot read it.
+
+**Why it matters beyond typing.** The existence of a `breaks_applied` counter implies
+break handling is a real, counted control — which sits awkwardly against the Early
+Access position that pause controls are unavailable and every count is always zero.
+Either the field is vestigial or breaks are partially implemented. Worth resolving,
+because published guidance currently says pause control does not exist, and this
+build's content repeats that. Related: FLAGS.md F-012, where `<break>` returns an
+internal error.
+
+**Before removing, check release notes for:** `breaks_applied` added to
+`ControlsApplied`, or a statement on whether break control is implemented.
+
+---
+
 ## W-003 — Voice catalog is typed but the shipping set is unverified against WER guidance
 
 **File:** `lib/voices.js`

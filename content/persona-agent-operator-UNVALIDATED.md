@@ -4,6 +4,7 @@ entry_point: INFERRED, not sourced — running an agent in production that gener
 format: Operational note
 status: ⚠️ DRAFT — DO NOT PUBLISH. Target persona is unvalidated. FLAGS.md F-007.
 keyword_lane: none assigned — would need one only if the persona is ratified
+HOLD: 🚨 Do not publish — FLAGS.md F-012. Markup is not stripped on staging; it is billed, and some tags return NET-0000. Verified 2026-08-11.
 ---
 
 > **Why this file is marked unvalidated.**

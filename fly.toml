@@ -30,11 +30,10 @@ primary_region = "iad"
   # per-IP limit global. 1 is correct here and only here.
   TRUSTED_PROXY_HOPS = "1"
 
-  # Runs the bundled reference upstream in-process alongside the app, because no
-  # staging endpoint exists yet (FLAGS.md F-001). Set to "0" the moment a real
-  # endpoint is configured. Every figure it produces is labelled reference-reported
-  # rather than API-reported, in the payload and in the UI.
-  BYOM_REFERENCE_UPSTREAM = "1"
+  # Reference upstream is OFF. This app now talks to real staging
+  # (wss://api.staging.deepgram.com), set as a secret. Receipts therefore carry
+  # origin "api" rather than "reference". See DECISIONS.md D-013.
+  BYOM_REFERENCE_UPSTREAM = "0"
 
 [http_service]
   internal_port = 8080
