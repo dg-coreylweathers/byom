@@ -1,0 +1,627 @@
+/**
+ * BYOM — skin matched to talk.deepgram.com, precision content per PRD §3.
+ *
+ * Tokens below marked (real) were read from the live site: the inline <style> in
+ * its document head, and its voice-widget.js bundle. Tokens marked [verify] are a
+ * best match where the source had no single authoritative value. See DECISIONS.md
+ * D-009.
+ *
+ * The division the build goal draws: the SKIN is talk.deepgram.com — dark, ambient
+ * glow, gradient orbs, one thin gradient-stroke ring in motion, a single mint
+ * accent, corner-anchored chrome, wide-tracked uppercase micro-labels, generous
+ * negative space. The PRECISION CONTENT is unchanged from the PRD — exact receipt
+ * figures, tabular figures, no layout shift, and a wire log that reads as a
+ * technical artifact.
+ */
+
+:root {
+  /* (real) talk.deepgram.com document head */
+  --bg: #000;
+  --ink: #e7e7ee;
+
+  /* (real) voice-widget.js palette */
+  --ink-bright: #fbfbff;
+  --ink-mid: #bbbbbf;
+  --ink-dim: #949498;
+  --ink-dimmer: #4e4e52;
+  --rule: #2c2c33;
+  --panel: #101014;
+  --panel-deep: #030308;
+
+  /* (real) the single accent. #13ef95 is the dominant mint in the bundle. */
+  --mint: #13ef95;
+  --mint-soft: #a1f9d4;
+  --mint-deep: #0a5c33;
+
+  /* (real) letter-spacing scale; 0.24em is the widest micro-label tracking */
+  --track-label: 0.18em;
+  --track-label-wide: 0.24em;
+
+  /* (real) radii present in the bundle */
+  --r-sm: 4px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* (real) font families named in the bundle's webfont request.
+     Loaded from the system when present rather than over the network — the one
+     moment in this tool that has to feel instant should not wait on a font, and
+     a third-party font host would put a vendor request in the critical path. */
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* [verify] spacing scale — inferred, not read from source */
+  --gap: 12px;
+  --gap-lg: 28px;
+  --gap-xl: 56px;
+
+  /* Two signal colors max (PRD §3): mint = kept/billed, dim neutral = stripped.
+     Stripped is deliberately NOT a second hue, so the single-accent rule holds. */
+  --sig-kept: var(--mint);
+  --sig-stripped: var(--ink-dimmer);
+}
+
+/* The skin is committed dark, matching talk.deepgram.com's `color-scheme: dark`.
+   PRD §3 asks for prefers-color-scheme support; a light variant would break the
+   skin match the build goal requires, so dark is deliberate. DECISIONS.md D-009. */
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Ambient field: glow + glassy orbs. Depth comes from gradients only (PRD §3). ── */
+
+.field {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  /* (real) the bundle's glow primitive */
+  background: radial-gradient(circle, var(--glow, var(--ink-bright)) 0%, transparent 66%);
+  opacity: 0.5;
+  filter: blur(18px);
+}
+
+.orb--mint {
+  --glow: var(--mint);
+  width: 52vmin;
+  height: 52vmin;
+  top: -14vmin;
+  left: -10vmin;
+  opacity: 0.16;
+}
+
+.orb--cool {
+  --glow: #274ee7;
+  width: 44vmin;
+  height: 44vmin;
+  right: -12vmin;
+  bottom: -16vmin;
+  opacity: 0.13;
+}
+
+.orb--sheen {
+  width: 60vmin;
+  height: 40vmin;
+  right: -8vmin;
+  top: -6vmin;
+  border-radius: var(--r-xl);
+  /* (real) the bundle's corner sheen gradient */
+  background: radial-gradient(96.4% 77.68% at 95.78% 0%, #ffffff 0%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0.04;
+  filter: none;
+}
+
+/* ── Corner-anchored chrome ── */
+
+.chrome {
+  position: fixed;
+  z-index: 3;
+  font-size: 10px;
+  letter-spacing: var(--track-label-wide);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.chrome--tl {
+  top: 22px;
+  left: 26px;
+  color: var(--ink-bright);
+  font-weight: 500;
+}
+
+.chrome--tr {
+  top: 22px;
+  right: 26px;
+}
+
+.chrome--bl {
+  bottom: 20px;
+  left: 26px;
+}
+
+.wordmark {
+  color: var(--ink-bright);
+}
+
+.wordmark em {
+  font-style: normal;
+  color: var(--mint);
+}
+
+/* ── Layout ── */
+
+.shell {
+  position: relative;
+  z-index: 2;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 104px 26px var(--gap-xl);
+}
+
+.lede {
+  max-width: 54ch;
+  margin: 0 0 var(--gap-xl);
+}
+
+.lede h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  margin: 0 0 14px;
+  color: var(--ink-bright);
+}
+
+.lede p {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 15px;
+}
+
+.micro {
+  display: block;
+  font-size: 10px;
+  letter-spacing: var(--track-label-wide);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 10px;
+}
+
+/* ── Input ── */
+
+.compose {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  padding: var(--gap-lg);
+  margin-bottom: var(--gap-lg);
+}
+
+textarea {
+  width: 100%;
+  min-height: 108px;
+  resize: vertical;
+  background: var(--panel-deep);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  /* Monospace: the input is markup, and alignment is the point. */
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  padding: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 1px solid var(--mint);
+  outline-offset: 2px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  align-items: center;
+  margin-top: 14px;
+}
+
+select {
+  background: var(--panel-deep);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+button {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+  padding: 9px 18px;
+  cursor: pointer;
+}
+
+button[data-primary] {
+  border-color: var(--mint-deep);
+  background: color-mix(in srgb, var(--mint) 12%, transparent);
+  color: var(--mint-soft);
+}
+
+button[data-primary]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mint) 20%, transparent);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.counter {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.counter[data-over] {
+  color: var(--mint-soft);
+}
+
+/* ── The ring: the one ambient motion element ── */
+
+.ring-slot {
+  display: flex;
+  justify-content: center;
+  min-height: 76px; /* reserved so appearance causes no layout shift */
+  align-items: center;
+  margin-bottom: var(--gap-lg);
+}
+
+.ring {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  /* Thin gradient stroke, drawn with two masked layers rather than a border, so
+     the stroke itself can carry a gradient. */
+  background:
+    conic-gradient(from 0deg, transparent 0%, var(--mint) 45%, var(--mint-soft) 60%, transparent 78%);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
+  animation: spin 1.15s linear infinite;
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+
+.ring[data-active] {
+  opacity: 1;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* ── Receipt ── */
+
+.report[hidden] {
+  display: none;
+}
+
+.receipt {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--rule); /* hairline rules via gap, not borders */
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: var(--gap-lg);
+}
+
+.cell {
+  background: var(--panel);
+  padding: 20px 22px;
+}
+
+.cell dt {
+  font-size: 10px;
+  letter-spacing: var(--track-label-wide);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+}
+
+.cell dd {
+  margin: 0;
+  font-family: var(--mono);
+  /* Tabular figures everywhere a number changes (PRD §3). */
+  font-variant-numeric: tabular-nums;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--ink-bright);
+  /* Fixed width so the rolling total cannot shift layout. */
+  min-height: 30px;
+}
+
+.cell dd[data-signal="kept"] {
+  color: var(--sig-kept);
+}
+
+.cell dd small {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+  margin-top: 10px;
+  line-height: 1.45;
+  font-variant-numeric: normal;
+}
+
+/* ── Stripped inventory ── */
+
+.panel {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  padding: 22px;
+  margin-bottom: var(--gap-lg);
+}
+
+.panel > h2 {
+  font-size: 10px;
+  letter-spacing: var(--track-label-wide);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+
+.tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tags li {
+  display: grid;
+  grid-template-columns: minmax(0, 22ch) 1fr;
+  gap: var(--gap);
+  padding: 11px 0;
+  border-top: 1px solid var(--rule);
+  align-items: baseline;
+}
+
+.tags li:first-child {
+  border-top: 0;
+}
+
+.tags code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--sig-stripped);
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* The strike-out. Width-animated so it reads as a line being drawn, and it is
+   the receipt reveal — distinct from the ambient ring. PRD §3. */
+.tags code::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1px;
+  width: 0;
+  background: var(--sig-stripped);
+}
+
+.tags li[data-struck] code::after {
+  width: 100%;
+  transition: width 200ms ease-out;
+}
+
+.advice {
+  font-size: 13px;
+  color: var(--ink-mid);
+}
+
+.advice[data-none] {
+  color: var(--ink-dimmer);
+  font-style: italic;
+}
+
+.empty {
+  color: var(--ink-dim);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ── Notices: disagreement, provenance, audio warnings ── */
+
+.notice {
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--mint-deep);
+  border-radius: var(--r-sm);
+  background: var(--panel-deep);
+  padding: 13px 16px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  color: var(--ink-mid);
+}
+
+.notice strong {
+  display: block;
+  font-size: 10px;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.notice ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+/* ── Waveform ── */
+
+.wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 56px;
+  margin-bottom: 14px;
+}
+
+.wave span {
+  flex: 1 1 auto;
+  background: var(--mint-deep);
+  min-height: 1px;
+  border-radius: 1px;
+}
+
+.audio-row {
+  display: flex;
+  gap: var(--gap);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.audio-row .meta {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Wire log: reads as a technical artifact ── */
+
+.log {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--panel-deep);
+  max-height: 340px;
+  overflow: auto;
+}
+
+.log table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.log th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-deep);
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 9.5px;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 500;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.log td {
+  padding: 6px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+.log td.seq {
+  color: var(--ink-dimmer);
+  width: 4ch;
+}
+
+.log td.dir {
+  width: 6ch;
+  color: var(--ink-dim);
+}
+
+.log td.dir[data-dir="send"] {
+  color: var(--mint-soft);
+}
+
+.log td.type {
+  width: 18ch;
+  color: var(--ink-bright);
+}
+
+.log td.type[data-unrecognized] {
+  color: var(--ink-dim);
+}
+
+.log pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.error {
+  border-color: var(--rule);
+  border-left-color: #ef79b7;
+  color: var(--ink);
+}
+
+/* ── Reduced motion: PRD §3 requires it. Nothing moves. ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+  }
+  .tags li[data-struck] code::after {
+    transition: none;
+  }
+  * {
+    scroll-behavior: auto;
+  }
+}

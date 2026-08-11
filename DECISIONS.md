@@ -194,3 +194,54 @@ though its premise does not.
 `tools/reference-upstream.js` needs a WebSocket **server**, which Node has no
 built-in for. It was already present as an SDK transitive dependency; declaring it
 explicitly avoids depending on someone else's dependency tree.
+
+---
+
+## D-009 — Reconciling the talk.deepgram.com skin with PRD §3's design genre
+
+The build goal replaces PRD §3's "laboratory instrument" genre with the
+talk.deepgram.com skin, and says only the skin changes — the precision content
+stays exactly as specified. Four places where the two documents give different
+instructions, and how each was resolved.
+
+**Tokens pulled from the real site.** Marked `(real)` in `public/styles.css`. Read
+from the inline `<style>` in its document head (`background: #000`,
+`color: #e7e7ee`, `color-scheme: dark`, `system-ui` stack) and from its
+`voice-widget.js` bundle: mint `#13ef95` with `#a1f9d4` / `#0a5c33`, neutrals
+`#fbfbff` `#bbbbbf` `#949498` `#4e4e52` `#2c2c33` `#101014` `#030308`, the glow
+primitive `radial-gradient(circle, var(--glow) 0%, transparent 66%)`, the corner
+sheen `radial-gradient(96.4% 77.68% at 95.78% 0%, #ffffff 0%, rgba(255,255,255,0) 100%)`,
+the letter-spacing scale up to `0.24em`, radii 3/4/8/12/14/16/24/999px, and the
+Inter + Fira Code pairing. Only the spacing scale is marked `[verify]` — it was
+inferred, not read.
+
+**1. "The one motion element."** The goal calls the gradient ring the one motion
+element; PRD §3 calls the tag strike-out plus rolling total the one animation.
+Resolved as two different things: the ring is the *ambient* motion (skin), the
+strike-out and roll are the *receipt reveal* (precision content, which the goal
+says stays). Both honour `prefers-reduced-motion`, which PRD §3 requires.
+
+**2. Two signal colors vs. a single mint accent.** PRD §3 allows two signal colors
+(kept / stripped); the goal specifies a single mint accent. Resolved by making
+stripped a **neutral** (`--ink-dimmer`) rather than a second hue. Kept/stripped
+stay distinguishable and the single-accent rule holds. Asserted by test.
+
+**3. 2px corners vs. the site's radii.** PRD §3 says 2px corners; the site uses
+12–24px. Corner radius is skin, so the site's radii win.
+
+**4. `prefers-color-scheme`.** PRD §3 asks for it; talk.deepgram.com is committed
+dark (`color-scheme: dark`). A light variant would break the skin match the goal
+requires, so this build is dark-only and says so in `styles.css`. **This is a
+deliberate departure from PRD §3** — flag it if a light mode is actually wanted,
+because it is the one place the skin instruction and the PRD cannot both be
+satisfied.
+
+**Also kept from PRD §3:** no `box-shadow` declarations (depth is gradient-only),
+hairline rules, monospace with `tabular-nums` everywhere a number changes, fixed
+heights on the receipt cell and ring slot so nothing reflows, and a wire log that
+renders frames verbatim. All asserted in `test/ui.test.js`.
+
+**Fonts are not loaded over the network.** Inter and Fira Code are requested from
+the system with fallbacks. The site fetches them from a third-party font host;
+doing that here would put a vendor request in the critical path of the one moment
+that has to feel instant, and would add a vendor name to the shipped page.

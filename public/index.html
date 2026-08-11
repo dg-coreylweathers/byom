@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bring Your Own Markup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- Ambient field. Decorative only, hidden from assistive tech. -->
+    <div class="field" aria-hidden="true">
+      <div class="orb orb--mint"></div>
+      <div class="orb orb--cool"></div>
+      <div class="orb orb--sheen"></div>
+    </div>
+
+    <div class="chrome chrome--tl"><span class="wordmark">BY<em>O</em>M</span></div>
+    <div class="chrome chrome--tr">Migration diagnostic</div>
+    <div class="chrome chrome--bl" id="env-chrome"></div>
+
+    <main class="shell">
+      <div class="lede">
+        <h1>Bring the markup you already have.</h1>
+        <p>
+          Paste a real prompt from your codebase — tags and all. You get back what was
+          removed, what it cost, the audio, and the server frames verbatim.
+        </p>
+      </div>
+
+      <!-- Provenance notice. Rendered when the report did not come from the API.
+           Never dismissible: a figure that is not API-reported stays marked. -->
+      <div class="notice" id="provenance" hidden></div>
+
+      <form class="compose" id="form">
+        <label class="micro" for="text">Your prompt</label>
+        <textarea id="text" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+        <div class="controls">
+          <label class="micro" for="voice" style="margin: 0">Voice</label>
+          <select id="voice"></select>
+          <button type="submit" data-primary id="run">Run the report</button>
+          <button type="button" id="reset">Reset</button>
+          <span class="counter" id="counter"></span>
+        </div>
+      </form>
+
+      <div class="ring-slot"><div class="ring" id="ring" role="presentation"></div></div>
+
+      <div class="notice error" id="error" hidden></div>
+
+      <section class="report" id="report" hidden>
+        <!-- Receipt. Figures are tabular and the cell height is fixed, so the
+             rolling total cannot shift the layout. -->
+        <dl class="receipt">
+          <div class="cell">
+            <dt>Submitted</dt>
+            <dd id="n-submitted">0</dd>
+          </div>
+          <div class="cell">
+            <dt>Billed</dt>
+            <dd id="n-billed" data-signal="kept">0<small id="billed-note"></small></dd>
+          </div>
+          <div class="cell">
+            <dt>Stripped</dt>
+            <dd id="n-stripped">0</dd>
+          </div>
+        </dl>
+
+        <div class="notice" id="disagreement" hidden></div>
+
+        <section class="panel">
+          <h2>What was removed</h2>
+          <ul class="tags" id="tags"></ul>
+          <p class="empty" id="tags-empty" hidden>
+            Nothing was removed. Every character you sent was billable.
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2>Audio</h2>
+          <div class="wave" id="wave" aria-hidden="true"></div>
+          <div class="audio-row">
+            <audio id="audio" controls preload="none"></audio>
+            <span class="meta" id="audio-meta"></span>
+          </div>
+          <div class="notice" id="audio-notes" hidden style="margin-top: 14px"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Wire log</h2>
+          <div class="log">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Dir</th>
+                  <th>Type</th>
+                  <th>Frame</th>
+                </tr>
+              </thead>
+              <tbody id="log-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
