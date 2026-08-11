@@ -1,8 +1,21 @@
 # Samples
 
-Copy-paste inputs for BYOM, with what each one actually does. Every outcome below
-was **measured against `wss://api.staging.deepgram.com`, model `flux-rufus-en`, on
-2026-08-11** — not predicted.
+Copy-paste inputs for BYOM. Every outcome below was **measured against
+`wss://api.staging.deepgram.com`, model `flux-rufus-en`, on 2026-08-11** — not
+predicted.
+
+> ## ⚠️ Outcomes are NOT deterministic
+>
+> The same input does not reliably produce the same result. Measured: the inline
+> control sample run 6 times returned **3 successes and 3 `NET-0000` errors** — the
+> same bytes, a 50% failure rate. Plain text was stable at 6/6.
+>
+> So read every table below as *"this is what happened when I ran it"*, not as a
+> per-tag rule. Run anything more than once before concluding anything. Failure
+> modes seen for the same input include `NET-0000`, a 60s timeout with hundreds of
+> audio frames and no terminator, and the connection closing mid-turn.
+>
+> **Plain text is the only input that behaved consistently.** See `FLAGS.md` F-012.
 
 Two ways to run them:
 
@@ -51,8 +64,9 @@ Load the "Speaking rate" sample and press play — you can hear the tag being re
 
 ## 3. Markup is billed, not stripped
 
-Each of these **succeeds**, and each is billed for every character including the
-tags. No `INPUT_MARKUP_STRIPPED` warning is emitted for any of them.
+Each of these **succeeded on the runs shown**, and each was billed for every
+character including the tags. No `INPUT_MARKUP_STRIPPED` warning was emitted for any
+of them. Any of these can also fail on a later attempt — see the warning above.
 
 | Paste this | Submitted | Billed |
 |---|---|---|
@@ -72,8 +86,9 @@ charged.
 
 ## 4. Markup that kills the connection
 
-Each of these terminates the turn with an error. Expect a wait — several stream
-runaway audio first.
+Each of these terminated the turn with an error on the runs shown. Expect a wait —
+several stream runaway audio first. `<break>` and `<emphasis>` failed on every
+attempt; the others were less consistent.
 
 | Paste this | Result |
 |---|---|
@@ -93,7 +108,8 @@ libraries, and it is fatal.
 ## 5. Inline controls — the documented syntax
 
 Inline controls are escaped JSON objects in the text, per the TTS voice-controls
-guide. Against Flux they either crash or are billed and ignored.
+guide. Against Flux they either crash or are billed and ignored — and the
+`{"speed"}` row is the one measured at a 50% failure rate across repeat runs.
 
 | Paste this | Result |
 |---|---|

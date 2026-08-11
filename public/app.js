@@ -289,6 +289,16 @@ function setBusy(busy) {
   else el.ring.removeAttribute("data-active");
 }
 
+/**
+ * Failure shapes that have been observed to succeed on a retry with byte-identical
+ * input. Measured: one input returned 3 successes and 3 errors across 6 runs.
+ *
+ * Worth calling out in the UI because the alternative is that a developer hits an
+ * intermittent upstream fault once and concludes this tool is broken — which is
+ * exactly what happens without the hint.
+ */
+const TRANSIENT = /NET-0000|timed out after|closed mid-turn|closed before any audio/;
+
 function showError(message) {
   el.error.textContent = "";
   const strong = document.createElement("strong");
@@ -296,6 +306,17 @@ function showError(message) {
   const span = document.createElement("span");
   span.textContent = message;
   el.error.append(strong, span);
+
+  if (TRANSIENT.test(message)) {
+    const hint = document.createElement("p");
+    hint.className = "retry-hint";
+    hint.textContent =
+      "This failure is not reliably reproducible — the same input has been measured " +
+      "succeeding on some attempts and failing on others. Run it again before concluding " +
+      "anything about this input. Plain text without markup has been stable.";
+    el.error.append(hint);
+  }
+
   el.error.hidden = false;
 }
 

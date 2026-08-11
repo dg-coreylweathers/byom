@@ -418,3 +418,39 @@ the audio. No tooling needed — you can simply hear it.
 
 Also newly found: `<prosody rate="slow" pitch="+2st" volume="loud" contour="(0%,+20Hz)">Hi.</prosody>`
 returns `NET-0000`, so longer attribute lists move from spoken-aloud into fatal.
+
+### F-012 addendum 3 — the failures are NONDETERMINISTIC · 2026-08-11
+
+Identical input, repeated 6 times each, single connection at a time:
+
+| Input | Result over 6 runs |
+|---|---|
+| `Your balance is forty-two dollars.` | **6 ok** |
+| `{"speed": "0.9"} Your balance is forty-two dollars.` | **3 ok, 3 `NET-0000`** |
+
+The same bytes fail half the time. An earlier session had this exact input succeed
+with `billed 51/51`; a later one had it return `NET-0000`.
+
+**Why this matters for triage.** It rules out "these specific tags are unimplemented"
+as the whole story. A deterministic parse failure would fail every time. A 50% rate
+on identical input points at something non-deterministic in the synthesis path —
+timing, a race, or an unhandled state on one of several backends — which is a
+different and more serious class of bug than a missing feature.
+
+It also means **any single test is not evidence.** The categorization in earlier
+addenda was built from single runs per input and should be treated as indicative
+only. `SAMPLES.md` now carries this warning at the top.
+
+**Observed failure modes for markup-bearing input**, all on inputs that also
+sometimes succeed:
+
+- `Error NET-0000` "internal error"
+- 60s timeout after hundreds of audio frames with no `SpeechMetadata`
+- the connection closing mid-turn with no `Error` frame at all
+- runaway synthesis (44s of audio for a 62-character sentence; 783 frames in another)
+
+**Plain text was stable across every run in every session.** The instability is
+specific to input containing markup or inline-control syntax.
+
+**Recommended ask when escalating:** run any repro at least 5 times. A single green
+run will otherwise read as "fixed" or "cannot reproduce".
