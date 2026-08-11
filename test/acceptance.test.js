@@ -13,7 +13,8 @@ import { validateBaseUrl } from "../lib/flux.js";
 import { resolveSafe } from "../lib/static.js";
 import { redact } from "../lib/redact.js";
 import { Limiter, configFromEnv, clientId } from "../lib/ratelimit.js";
-import { trimLeadingSilence, measurePeak, toWav, PRE_ROLL_MS } from "../lib/wav.js";
+import { trimLeadingSilence, measurePeak, toWav, PRE_ROLL_MS, DEFAULT_ENCODING } from "../lib/wav.js";
+import { readFile } from "node:fs/promises";
 import { mockClientFactory, defaultFrames, makePcm } from "./mock-speak.js";
 
 const STAGING = "wss://api.staging.example.internal";
@@ -623,6 +624,69 @@ test("the WAV header is well-formed", () => {
   assert.equal(wav.readUInt16LE(34), 16, "bits per sample");
   assert.equal(wav.readUInt32LE(40), samples.length * 2);
   assert.equal(wav.length, 44 + samples.length * 2);
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Empty results must fail loudly, never ship a header-only artifact.
+// ───────────────────────────────────────────────────────────────────────────────
+
+test("a turn that completes with no audio frames fails loudly", async (t) => {
+  // Flushed arrives, character accounting is fine, but no audio came. Returning
+  // 200 here would hand back a 44-byte WAV inside a receipt that looks complete —
+  // exactly what the Blob misclassification bug produced.
+  const frames = [
+    { type: "Connected" },
+    { type: "SessionMetadata", sample_rate: 24000 },
+    {
+      type: "SpeechMetadata",
+      speech_id: "s",
+      audio_duration_ms: 0,
+      input_character_count: 87,
+      billable_character_count: 62,
+      controls_applied: { pronunciations_applied: 0, pronunciation_warnings: 0 },
+    },
+    { type: "Flushed" },
+  ];
+  const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
+  const { res, body } = await c.post("/api/speak", { text: DEFAULT_PRESET });
+
+  assert.equal(res.status, 502, "an audio-less turn must not report success");
+  assert.match(body.error, /no audio frames arrived/);
+});
+
+test("a zero-byte audio frame is also rejected", async (t) => {
+  const frames = [
+    { type: "Connected" },
+    { type: "SessionMetadata", sample_rate: 24000 },
+    Buffer.alloc(0),
+    { type: "Flushed" },
+  ];
+  const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
+  const { res, body } = await c.post("/api/speak", { text: "hello" });
+  assert.equal(res.status, 502);
+  assert.match(body.error, /zero bytes/);
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
+// The container must never disagree with the encoding.
+// ───────────────────────────────────────────────────────────────────────────────
+
+test("an unmapped encoding throws instead of silently writing a PCM header", () => {
+  const samples = new Int16Array([0, 100, -100]);
+  // A PCM format code over companded audio ships a file that plays as noise, and
+  // nothing downstream would catch it.
+  assert.throws(() => toWav(samples, 24000, "mulaw"), /no WAV header mapping/);
+  assert.throws(() => toWav(samples, 24000, "alaw"), /do not fall back to PCM/);
+});
+
+test("linear16 is the encoding requested and the one the header declares", async () => {
+  const flux = await readFile(new URL("../lib/flux.js", import.meta.url), "utf8");
+  // The request's encoding and the header's format code must stay coupled.
+  assert.match(flux, /encoding:\s*DEFAULT_ENCODING/, "the request should use the shared constant");
+
+  const wav = toWav(new Int16Array([1, 2, 3]), 24000, DEFAULT_ENCODING);
+  assert.equal(wav.readUInt16LE(20), 1, "linear16 → PCM format code 1");
+  assert.equal(wav.readUInt16LE(34), 16, "linear16 → 16 bits per sample");
 });
 
 // ───────────────────────────────────────────────────────────────────────────────

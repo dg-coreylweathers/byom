@@ -157,3 +157,26 @@ has no canonical definition behind it — its entry point and agentic shift are
 inferred by this build, not sourced. **It should not ship until either the
 persona reference adds the archetype or the piece is retargeted at one of the
 six.** Everything else in §7 maps to a defined archetype.
+
+---
+
+## F-008 — Server contract: can one turn emit multiple SpeechMetadata frames? · 2026-08-11
+
+**Owner needed:** API owners — same group already receiving F-006; fold into that
+thread rather than opening a new one.
+
+Raised by the code review (REVIEW.md, Needs human). BYOM takes last-write-wins on
+`billable_character_count` when more than one `SpeechMetadata` frame arrives in a
+turn. That is correct for the single-shot request it makes — one `Speak`, one
+`Flush` — and would be wrong for a multi-turn session.
+
+The question: **does the server ever emit more than one `SpeechMetadata` per turn,
+and if so, are the counts per-turn or cumulative?** This cannot be answered from
+the client repo.
+
+**Not blocking this build** — the multi-turn path is unreachable in BYOM. It
+matters for anyone building a conversational client on the same transport, which is
+why it is worth answering once, in writing.
+
+The Flux edge case documented on the STT side (repeated `StartOfTurn`, empty
+transcripts) suggests the speak side deserves the same explicit treatment.

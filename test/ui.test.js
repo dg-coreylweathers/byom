@@ -35,6 +35,22 @@ test("no vendor or competitor name appears in any shipped UI file", async () => 
   }
 });
 
+test("no vendor or competitor name appears in the README", async () => {
+  // The README is shipped copy on a public repo, so it is in scope for the same
+  // constraint as the UI.
+  const readme = await readFile(path.join(ROOT, "README.md"), "utf8");
+  const match = readme.match(VENDOR_NAMES);
+  assert.equal(match, null, `README.md contains a vendor name: ${match && match[0]}`);
+});
+
+test("the README documents the two required env vars and why they have no defaults", async () => {
+  const readme = await readFile(path.join(ROOT, "README.md"), "utf8");
+  assert.match(readme, /DEEPGRAM_BASE_URL/);
+  assert.match(readme, /DEEPGRAM_STAGING_API_KEY/);
+  // The production-fallback hazard is the single most important thing to convey.
+  assert.match(readme, /production/i);
+});
+
 test("no vendor name appears in alt text, titles, or aria labels", async () => {
   const html = await readFile(path.join(PUBLIC, "index.html"), "utf8");
   const attrs = html.match(/(alt|title|aria-label|aria-description)="([^"]*)"/gi) || [];

@@ -245,3 +245,30 @@ renders frames verbatim. All asserted in `test/ui.test.js`.
 the system with fallbacks. The site fetches them from a third-party font host;
 doing that here would put a vendor request in the critical path of the one moment
 that has to feel instant, and would add a vendor name to the shipped page.
+
+---
+
+## D-010 — Review substitution and what the review actually found
+
+**Decided:** Ran the installed `devrel-review` skill in place of the
+`devrel-code-review` named by the build goal (see D-005 — the named skill does not
+exist here). Classified as a code review; the README is reviewed under its §8
+developer-messaging lens. Output in `REVIEW.md`.
+
+**No skill was modified.** The goal directs using `skill-creator` to add a missing
+check that a codebase's shape clearly needs, and `skill-creator` is not installed
+(F-003). Worth recording what *would* have been proposed: the checklist's §3
+binary-format trap and §4 empty-result rule are written for CLI tools that write
+files, and both applied cleanly to a server returning base64 audio over HTTP — the
+finding generalizes, so it belongs in the skill rather than being a one-off. That
+generalization could not be made here.
+
+**Four findings, all fixed in-run:** a stale lockfile that `npm ci` would have
+tripped over (B1), an audio-less turn returning HTTP 200 with a header-only WAV
+(B2), a missing README on a repo intended to be public (B3), and encoding
+hardcoded in two uncoupled places so the WAV header could come to disagree with
+the requested format (S1). B2 and S1 are both cases the checklist names explicitly,
+which is a fair argument for the checklist.
+
+**One item routed out rather than resolved:** whether a turn can emit multiple
+`SpeechMetadata` frames is a server-contract question — FLAGS.md F-008.
