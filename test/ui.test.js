@@ -140,6 +140,36 @@ test("the shared markup mirror is served to the browser", async (t) => {
   assert.match(await index.text(), /Bring Your Own Markup/);
 });
 
+test("the audio section carries its own voice selector", async () => {
+  const html = await readFile(path.join(PUBLIC, "index.html"), "utf8");
+  const app = await readFile(path.join(PUBLIC, "app.js"), "utf8");
+
+  // The selector must sit inside the audio panel, next to the audio it changes.
+  const audioPanel = html.slice(html.indexOf("Audio as spoken"), html.indexOf("Wire log"));
+  assert.match(audioPanel, /id="voice-audio"/, "voice selector belongs in the audio section");
+
+  // Changing it re-runs the same text, and the two selectors stay in sync so there
+  // is one selected voice rather than two competing ones.
+  assert.match(app, /voiceAudio\.addEventListener\("change"/);
+  assert.match(app, /el\.voice\.value = el\.voiceAudio\.value/);
+  assert.match(app, /el\.voiceAudio\.value = el\.voice\.value/);
+  assert.match(app, /await run\(\)/, "the change handler should re-run the report");
+});
+
+test("the how-to block explains the intended interaction", async () => {
+  const html = await readFile(path.join(PUBLIC, "index.html"), "utf8");
+  const howto = html.slice(html.indexOf('class="howto"'), html.indexOf("</section>", html.indexOf('class="howto"')));
+  // The load-bearing instruction: do not clean the input up first.
+  assert.match(howto, /don't tidy it first|Don't tidy it first/i);
+  assert.match(howto, /never logged/i, "must state the text-retention position");
+  assert.equal((howto.match(/<li>/g) || []).length >= 4, true, "should be a short numbered sequence");
+});
+
+test("the sample loader keeps a fixed-height note so the form never reflows", async () => {
+  const css = await readFile(path.join(PUBLIC, "styles.css"), "utf8");
+  assert.match(css, /\.samples-note\s*\{[^}]*min-height/s, "the note line needs a reserved height");
+});
+
 test("the default preset is what the UI loads, and it is the correct one", async (t) => {
   const app = createApp({
     env: {

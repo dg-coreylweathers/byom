@@ -27,11 +27,51 @@
         </p>
       </div>
 
+      <!-- How this is meant to be used. Deliberately concrete: the most common
+           mistake is cleaning the input up first, which destroys the measurement. -->
+      <section class="howto">
+        <span class="micro">How to use this</span>
+        <ol>
+          <li>
+            <strong>Paste something real.</strong> A live template from your codebase,
+            markup included. Don't tidy it first — the tags are the measurement.
+          </li>
+          <li>
+            <strong>Read the receipt.</strong> Characters you sent against characters
+            billed. Every figure says where it came from: the API, or computed here.
+          </li>
+          <li>
+            <strong>Check the inventory.</strong> What was removed, and what to use
+            instead where there's a real answer. It says "no direct equivalent" rather
+            than inventing one.
+          </li>
+          <li>
+            <strong>Play it, then switch voices.</strong> The voice selector sits with
+            the audio so you can re-run the same text and compare.
+          </li>
+          <li>
+            <strong>Read the wire log</strong> if you don't believe a number. Every
+            frame, in protocol order, unedited.
+          </li>
+        </ol>
+        <p class="howto-foot">
+          One request per run, against a staging endpoint. Your text is held for the
+          life of the request and is never logged or stored.
+        </p>
+      </section>
+
       <!-- Provenance notice. Rendered when the report did not come from the API.
            Never dismissible: a figure that is not API-reported stays marked. -->
       <div class="notice" id="provenance" hidden></div>
 
       <form class="compose" id="form">
+        <span class="micro">Load a sample</span>
+        <!-- Samples are labelled by the markup they contain, never by what the
+             server will do with them. Measured outcomes live in SAMPLES.md — the
+             tool's job is to show you, not to tell you in advance. -->
+        <div class="samples" id="samples"></div>
+        <p class="samples-note" id="sample-note"></p>
+
         <label class="micro" for="text">Your prompt</label>
         <textarea id="text" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
         <div class="controls">
@@ -76,13 +116,22 @@
         </section>
 
         <section class="panel">
-          <h2>Audio</h2>
+          <h2>Audio as spoken</h2>
           <div class="wave" id="wave" aria-hidden="true"></div>
           <div class="audio-row">
             <audio id="audio" controls preload="none"></audio>
             <span class="meta" id="audio-meta"></span>
           </div>
-          <div class="notice" id="audio-notes" hidden style="margin-top: 14px"></div>
+
+          <!-- Voice lives here, next to the audio it changes. Selecting one re-runs
+               the same text so two voices can be compared without retyping. -->
+          <div class="voice-row">
+            <label class="micro" for="voice-audio">Re-run in another voice</label>
+            <select id="voice-audio"></select>
+            <span class="meta" id="voice-status"></span>
+          </div>
+
+          <div class="notice" id="audio-notes" hidden></div>
         </section>
 
         <section class="panel">

@@ -14,6 +14,10 @@ const el = {
   form: $("form"),
   text: $("text"),
   voice: $("voice"),
+  voiceAudio: $("voice-audio"),
+  voiceStatus: $("voice-status"),
+  samples: $("samples"),
+  sampleNote: $("sample-note"),
   run: $("run"),
   reset: $("reset"),
   counter: $("counter"),
@@ -295,8 +299,13 @@ function showError(message) {
   el.error.hidden = false;
 }
 
-el.form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+/**
+ * Run the report for the current text and voice.
+ *
+ * Extracted from the submit handler so the voice selector in the audio section can
+ * re-run the same text without duplicating the request logic.
+ */
+async function run() {
   el.error.hidden = true;
   setBusy(true);
 
@@ -326,6 +335,11 @@ el.form.addEventListener("submit", async (event) => {
   } finally {
     setBusy(false);
   }
+}
+
+el.form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  run();
 });
 
 el.reset.addEventListener("click", () => {
@@ -348,15 +362,84 @@ el.text.addEventListener("input", updateCounter);
     return;
   }
 
-  for (const voice of config.voices) {
-    const option = document.createElement("option");
-    option.value = voice;
-    option.textContent = voice;
-    if (voice === config.defaultVoice) option.selected = true;
-    el.voice.append(option);
+  for (const select of [el.voice, el.voiceAudio]) {
+    for (const voice of config.voices) {
+      const option = document.createElement("option");
+      option.value = voice;
+      option.textContent = voice;
+      if (voice === config.defaultVoice) option.selected = true;
+      select.append(option);
+    }
   }
+
+  renderSamples();
 
   el.text.value = config.preset;
   el.envChrome.textContent = `Cap ${config.maxInputChars} chars`;
   updateCounter();
 })();
+
+/* ── Samples ─────────────────────────────────────────────────────────────────── */
+
+/**
+ * Render the sample loader.
+ *
+ * Buttons carry only the label; the note for the focused sample renders into a
+ * single fixed-height line rather than under each button, so the row height never
+ * changes as you move between them. Same no-layout-shift rule as the receipt.
+ */
+function renderSamples() {
+  el.samples.textContent = "";
+  (config.samples || []).forEach((sample, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sample";
+    button.textContent = sample.label;
+    button.dataset.index = String(index);
+
+    const describe = () => {
+      el.sampleNote.textContent = sample.note || "";
+    };
+    button.addEventListener("mouseenter", describe);
+    button.addEventListener("focus", describe);
+
+    button.addEventListener("click", () => {
+      el.text.value = sample.text;
+      for (const other of el.samples.querySelectorAll(".sample")) {
+        other.removeAttribute("data-active");
+      }
+      button.setAttribute("data-active", "");
+      describe();
+      updateCounter();
+      // Loading a sample invalidates the report on screen — it describes different
+      // input. Hide it rather than leave a stale receipt above a changed prompt.
+      el.report.hidden = true;
+      el.error.hidden = true;
+      el.text.focus();
+    });
+
+    el.samples.append(button);
+  });
+}
+
+/* ── Voice switching from the audio section ──────────────────────────────────── */
+
+/**
+ * Changing the voice next to the audio re-runs the same text.
+ *
+ * Kept in sync with the compose-row selector so there is one selected voice, not
+ * two competing ones. The compose selector picks the voice for the first run; this
+ * one exists to compare voices after you have a result, which is when you actually
+ * want it.
+ */
+el.voiceAudio.addEventListener("change", async () => {
+  el.voice.value = el.voiceAudio.value;
+  if (el.text.value.trim() === "") return;
+  el.voiceStatus.textContent = `re-running as ${el.voiceAudio.value}…`;
+  await run();
+  el.voiceStatus.textContent = "";
+});
+
+el.voice.addEventListener("change", () => {
+  el.voiceAudio.value = el.voice.value;
+});

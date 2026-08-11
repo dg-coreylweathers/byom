@@ -363,3 +363,58 @@ That review also documents `controls_applied.breaks_applied` as "pause controls 
 took effect" and states inline controls are **in GA scope**. Measured against staging,
 no pause control takes effect and every attempt is billed or fatal. If GA scope still
 includes inline controls, staging is a long way from it.
+
+### F-012 addendum 2 — the markup is SPOKEN ALOUD. Proven, not inferred. · 2026-08-11
+
+**This is the most severe part of F-012 and it was missed in the first two passes.**
+
+Markup is not stripped, and it is not ignored. **It is synthesized as speech and
+played to the listener.**
+
+**Proof.** BYOM's own audio output was fed back through staging STT
+(`api.staging.deepgram.com/v1/listen`, `model=nova-3`):
+
+| Input to TTS | Transcript of the resulting audio |
+|---|---|
+| `Your balance is forty-two dollars.` | `"Your balance is $42."` |
+| `<prosody rate="slow">Your balance is forty-two dollars.</prosody>` | **`"Prosody rate equals slow your balance is $42 prosody."`** |
+
+The tag is read out loud, attribute and all. A caller hears *"prosody rate equals
+slow"* before their balance.
+
+**Corroborating duration measurements** (same spoken words, tags added):
+
+| Input | Total chars | Audio | ms/char |
+|---|---|---|---|
+| `Your balance is forty-two dollars.` | 34 | 2160ms | 63.5 |
+| `<prosody rate="slow">…same words…</prosody>` | 65 | 4400ms | 67.7 |
+
+Duration scales with **total** character count, not the clean text. If markup were
+stripped, the second row would produce identical audio to the first. Instead it
+produces roughly double, at the same ms/char rate — the tags are being spoken.
+
+### Why this is the worst of the possible behaviors
+
+The Explorer content drafted in this cluster lists three failure modes for unhandled
+markup. Staging is exhibiting **the first and the second at once**:
+
+1. **Read aloud** — the listener hears the tag. ✅ confirmed by transcript
+2. **Silently billed** — charged for characters that produce no value. ✅ confirmed
+3. Request rejected — happens too, for `<break>`, `<emphasis>`, `[pause]`
+
+So the customer pays for the tags *and* their end users hear them. There is no
+warning frame, so nothing in the response indicates any of this happened.
+
+### Severity
+
+Anyone who points an existing markup-carrying prompt library at Flux TTS today ships
+audio that reads XML tags to their callers. It is audible on the first request, so it
+will be caught in any manual test — but it makes "bring the markup you already have"
+exactly backwards as launch messaging, and it will be found by customers within
+minutes of GA.
+
+**Reproduce:** load the "Speaking rate" sample at https://byom-staging.fly.dev, play
+the audio. No tooling needed — you can simply hear it.
+
+Also newly found: `<prosody rate="slow" pitch="+2st" volume="loud" contour="(0%,+20Hz)">Hi.</prosody>`
+returns `NET-0000`, so longer attribute lists move from spoken-aloud into fatal.

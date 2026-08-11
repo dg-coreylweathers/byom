@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { createApp, MAX_INPUT_CHARS, DEFAULT_PRESET, describeDisagreement } from "../server.js";
+import { createApp, MAX_INPUT_CHARS, DEFAULT_PRESET, SAMPLES, describeDisagreement } from "../server.js";
 import { analyze } from "../public/markup.js";
 import { resolveVoice, DEFAULT_VOICE, ALLOWED, EXCLUDED } from "../lib/voices.js";
 import { validateBaseUrl } from "../lib/flux.js";
@@ -76,7 +76,21 @@ test("the API key is absent from /api/config", async (t) => {
   // Nothing key-derived either — no prefix, no length, no hash.
   const serialized = JSON.stringify(body);
   assert.ok(!serialized.includes(FAKE_KEY.slice(0, 8)), "key prefix leaked");
-  assert.ok(!/apiKey|api_key|authorization|secret|token/i.test(serialized), "config names a credential field");
+  // Check KEYS, not the serialized blob. The concern is a credential-named field
+  // in the payload; matching the whole blob also flags legitimate prose that
+  // happens to use a word like "token", which is a false positive, not a leak.
+  const keys = [];
+  (function walk(node) {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (node && typeof node === "object") {
+      for (const [k, v] of Object.entries(node)) {
+        keys.push(k);
+        walk(v);
+      }
+    }
+  })(body);
+  const credentialKey = keys.find((k) => /^(apiKey|api_key|authorization|secret|token|password)$/i.test(k));
+  assert.equal(credentialKey, undefined, `config exposes a credential field: ${credentialKey}`);
 });
 
 test("the API key is absent from a successful /api/speak response", async (t) => {
@@ -197,6 +211,35 @@ test("the default preset's arithmetic is correct — 87 in, 62 billed, 25 stripp
   // the spec's own example gets wrong (FLAGS.md F-006).
   const sum = a.stripped.reduce((n, s) => n + s.raw.length, 0);
   assert.equal(sum, 25);
+});
+
+test("every loadable sample honours the launch content constraints", () => {
+  // PRD §5.3: no preset/copy may contain the plural of "interruption", and none may
+  // spell letter-by-letter. Samples are copy that ships, so they are in scope.
+  for (const sample of SAMPLES) {
+    assert.ok(sample.label && sample.note && sample.text, `sample is incomplete: ${sample.label}`);
+    assert.ok(!/interruptions/i.test(sample.text + sample.note), `"${sample.label}" uses the plural`);
+    assert.ok(
+      !/\b([A-Za-z])[-\s]([A-Za-z])[-\s]([A-Za-z])\b/.test(sample.text),
+      `"${sample.label}" spells letter-by-letter`,
+    );
+    assert.ok(sample.text.length <= MAX_INPUT_CHARS, `"${sample.label}" exceeds the cap`);
+  }
+  // The set must actually cover both markup families, or it teaches half the story.
+  const all = SAMPLES.map((s) => s.text).join(" ");
+  assert.match(all, /<prosody/, "should include XML-style markup");
+  assert.match(all, /\{"speed"/, "should include the escaped-JSON inline control form");
+  assert.ok(SAMPLES.some((s) => !/[<{]/.test(s.text)), "should include a plain-text control case");
+});
+
+test("samples are served to the browser via /api/config", async (t) => {
+  const c = await withServer(t);
+  const { body } = await c.get("/api/config");
+  assert.ok(Array.isArray(body.samples) && body.samples.length >= 4);
+  assert.deepEqual(
+    body.samples.map((s) => s.label),
+    SAMPLES.map((s) => s.label),
+  );
 });
 
 test("the preset honours the launch content constraints", () => {

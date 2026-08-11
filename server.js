@@ -33,6 +33,68 @@ export const MAX_INPUT_CHARS = 900;
 export const DEFAULT_PRESET =
   '<s>Your transfer went through. Your balance is forty-two dollars.</s><break time="1s"/>';
 
+/**
+ * Loadable samples.
+ *
+ * Labelled by WHAT MARKUP THEY CONTAIN, never by what the server will do with
+ * them. Two reasons that distinction matters:
+ *
+ * 1. The tool's entire job is to show what actually happens. Baking an expected
+ *    outcome into the UI would mean asserting behavior instead of measuring it —
+ *    and if the two ever disagreed, the label would be the thing people believed.
+ * 2. Outcomes are environment- and version-specific. A label that says "this one
+ *    fails" goes stale the moment it is fixed, and then the tool is lying.
+ *
+ * Measured outcomes live in SAMPLES.md, dated and attributed to an environment.
+ *
+ * Every sample honours PRD §5.3's content constraints — no plural of
+ * "interruption", no letter-by-letter spelling — and is asserted so by test.
+ */
+export const SAMPLES = [
+  {
+    label: "Plain text",
+    note: "No markup. The control case — run this first.",
+    text: "Your transfer went through. Your balance is forty-two dollars.",
+  },
+  {
+    label: "Sentence tags + pause",
+    note: "The 87-character example. Structural tags and a timed pause.",
+    text: DEFAULT_PRESET,
+  },
+  {
+    label: "Speaking rate",
+    note: "Rate markup. Compare against the `speed` request parameter, which accepts 0.85–1.15.",
+    text: '<prosody rate="slow">Your balance is forty-two dollars.</prosody>',
+  },
+  {
+    label: "Emphasis",
+    note: "Emphasis on a single word.",
+    text: "Your balance is <emphasis>forty-two</emphasis> dollars.",
+  },
+  {
+    label: "Spoken-form substitution",
+    note: "An alias for how a written form should be read aloud.",
+    text: 'Weight is <sub alias="ten kilograms">10 kg</sub> total.',
+  },
+  {
+    label: "Pronunciation override",
+    note: "Phoneme markup using IPA.",
+    text: 'Say <phoneme alphabet="ipa" ph="dip">Deepgram</phoneme> now.',
+  },
+  {
+    label: "Inline control (JSON)",
+    note: "The escaped-JSON inline control form, rather than XML-style tags.",
+    text: '{"speed": "0.9"} Your balance is forty-two dollars.',
+  },
+  {
+    label: "A realistic mixed prompt",
+    note: "Closer to what actually sits in a template: several kinds at once.",
+    text:
+      '<speak><p>Thanks for calling.</p><break time="500ms"/>' +
+      '<prosody rate="slow">Your balance is forty-two dollars.</prosody></speak>',
+  },
+];
+
 const MAX_BODY_BYTES = 8 * 1024;
 
 function json(res, status, payload, extraHeaders = {}) {
@@ -232,6 +294,7 @@ export function createApp({ env = process.env, now = () => Date.now(), clientFac
           voices: ALLOWED,
           defaultVoice: DEFAULT_VOICE,
           preset: DEFAULT_PRESET,
+          samples: SAMPLES,
           maxInputChars: MAX_INPUT_CHARS,
           limits: {
             globalPerMinute: limiterConfig.globalPerMinute,

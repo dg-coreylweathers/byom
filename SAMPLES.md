@@ -38,7 +38,18 @@ Use this one to confirm your setup before trying anything else.
 
 ---
 
-## 2. Markup is billed, not stripped
+## 2. Markup is SPOKEN ALOUD, and billed
+
+Proven by transcribing BYOM's own output back through STT:
+
+| Input | Transcript of the audio it produced |
+|---|---|
+| `Your balance is forty-two dollars.` | `"Your balance is $42."` |
+| `<prosody rate="slow">Your balance is forty-two dollars.</prosody>` | **`"Prosody rate equals slow your balance is $42 prosody."`** |
+
+Load the "Speaking rate" sample and press play — you can hear the tag being read.
+
+## 3. Markup is billed, not stripped
 
 Each of these **succeeds**, and each is billed for every character including the
 tags. No `INPUT_MARKUP_STRIPPED` warning is emitted for any of them.
@@ -59,7 +70,7 @@ charged.
 
 ---
 
-## 3. Markup that kills the connection
+## 4. Markup that kills the connection
 
 Each of these terminates the turn with an error. Expect a wait — several stream
 runaway audio first.
@@ -79,7 +90,7 @@ libraries, and it is fatal.
 
 ---
 
-## 4. Inline controls — the documented syntax
+## 5. Inline controls — the documented syntax
 
 Inline controls are escaped JSON objects in the text, per the TTS voice-controls
 guide. Against Flux they either crash or are billed and ignored.
@@ -97,7 +108,7 @@ unimplemented idea. `controls_applied.breaks_applied` never left zero in any run
 
 ---
 
-## 5. Edge cases that are fine
+## 6. Edge cases that are fine
 
 Worth running to see where the boundary is — these all behave sensibly.
 
@@ -131,6 +142,6 @@ curl -s -X POST $BYOM/api/speak -H 'content-type: application/json' \
 ## Summary of what these samples establish
 
 Nothing that looks like markup or an inline control currently works on Flux staging.
-Every input above either bills you for the markup as plain text, or terminates the
-connection. See `FLAGS.md` F-012 — this is GA-blocking and is why everything in
+Every input above either **reads the markup aloud to your listener while billing you
+for it**, or terminates the connection. See `FLAGS.md` F-012 — this is GA-blocking and is why everything in
 `/content` is on hold.
