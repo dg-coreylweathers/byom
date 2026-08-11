@@ -125,3 +125,72 @@ shipping catalog — the PRD's claim is exactly right, and it is right by
 elimination across a catalog where 4 of 6 guidance names are phantoms. That
 makes the guidance itself the problem, not the default. Escalated as FLAGS.md
 F-004 with this evidence attached; not resolved here, per PRD §8.
+
+---
+
+## D-007 — Build a reference upstream rather than deploy against an injected double
+
+**Decided:** `tools/reference-upstream.js` implements the server side of
+`/v2/speak` as a standalone service. BYOM connects to it over a real WebSocket
+through the real SDK.
+
+**Why:** Directed during the run, and it resolves a genuine problem with the
+alternative. With no staging host (F-001), the only other option was the
+in-process double injected at the SDK-client boundary — which leaves the entire
+transport untested: `createConnection`, header auth, binary frame delivery, and
+protocol ordering as the SDK actually parses it. A deploy on that basis would be
+a shell.
+
+Building it real immediately paid for itself. Three defects were found that the
+injected double could not have surfaced, all in SDK_WATCH: audio arriving as
+`Blob` (W-004), `sendSpeak`/`sendFlush` needing an explicit `type` (W-005), and
+BYOM misreading an absent `Warning` frame as a failure to report rather than as
+confirmation that nothing was stripped.
+
+**Honesty constraints, since it is not a synthesizer:**
+
+- It announces itself in `SessionMetadata.implementation`. BYOM reads that and
+  labels the receipt `origin: "reference"` — never `"api"` — with a note saying
+  the figures are not API-reported and not a real synthesis. This follows the rule
+  PRD §3 already sets for the batch fallback: a number that did not come from the
+  API is visibly marked.
+- It shares `public/markup.js` with BYOM rather than restating the strip contract.
+  A reference implementation of a contract should not fork it. Consequence: mirror
+  and upstream agree by construction, which is correct. `--fault` forces a
+  disagreement so BYOM's disagreement flag can be exercised on a live connection.
+- It deliberately reproduces both PRD §5.3 output defects — ~350ms of head dead
+  air, and output normalized to exactly full scale with no headroom. A
+  well-behaved mock would hide the two things this tool exists to demonstrate.
+  Full-scale peak is reached by normalizing rather than by a fixed gain, because
+  summed harmonics only reach unity when phases align, which would otherwise
+  leave incidental headroom that varies with word count.
+
+**Revisit if:** a staging host appears. The upstream stays useful for CI and
+offline demos, but the deployed tool should point at staging, and the receipt
+label will switch from `reference` to `api` on its own with no code change.
+
+---
+
+## D-008 — PRD §5.5's WebSocket-auth open decision is closed by the SDK
+
+**Decided:** No action needed. The auth question in PRD §5.5 does not arise.
+
+**PRD §5.5 said:** the build uses the `token` subprotocol because "Node's global
+`WebSocket` can't set headers," and if deployment requires an `Authorization`
+header instead, `lib/flux.js` would need the `ws` package added — "the one
+dependency this project would ever need."
+
+**What is actually true.** Verified by probing the handshake: the SDK sends an
+`Authorization` header and no subprotocol at all. It loads `ws` internally
+(`loadNodeWebSocket()`), so the header limitation of the global `WebSocket` never
+applies.
+
+So both branches of §5.5's contingency are moot — the header path is already what
+ships, and we do not need to add `ws` for it. `lib/flux.js` remains the only file
+that would change if auth ever changes, so the PRD's structural claim holds even
+though its premise does not.
+
+**Note on `ws`:** it *is* now a declared dependency, but for an unrelated reason —
+`tools/reference-upstream.js` needs a WebSocket **server**, which Node has no
+built-in for. It was already present as an SDK transitive dependency; declaring it
+explicitly avoids depending on someone else's dependency tree.

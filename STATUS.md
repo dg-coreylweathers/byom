@@ -139,3 +139,37 @@ else in the build depends on it — the mocked path covers the acceptance gate.
 ### Skills modified
 None. `skill-creator` is not installed, so the goal's prescribed mechanism for
 closing skill gaps was unavailable. F-003, D-005.
+
+---
+
+## Step 1b — Reference upstream, and what it caught · complete
+
+Built `tools/reference-upstream.js`: a real `/v2/speak` server. BYOM now connects
+to it over an actual WebSocket through the actual SDK, so the transport is
+exercised rather than stubbed. **65 tests passing** (52 acceptance + 13 end-to-end).
+
+Building it real found three defects the injected double structurally could not:
+
+1. **Audio arrives as `Blob` under Node** (SDK_WATCH W-004). `Blob.type` is `""`,
+   so the binary frames were being classified as control frames and the PCM
+   dropped — producing a complete-looking report with a 44-byte header-only WAV.
+   Worst possible failure shape for this tool: the receipt renders, the audio is
+   empty, nothing errors.
+2. **`sendSpeak`/`sendFlush` don't set `type`** (W-005). Omitting it opens the
+   socket, gets frames accepted, and draws `NO_ACTIVE_SPEECH` warnings instead of
+   synthesis — the turn just never completes. TypeScript enforces this field;
+   plain JS doesn't.
+3. **An absent `Warning` frame was misread as a reporting failure.** On text with
+   no markup there is nothing to warn about, so no Warning arrives — and BYOM was
+   flagging a spurious mirror/server disagreement. Silence is only suspicious when
+   the mirror expected a warning.
+
+Also closed PRD §5.5's WebSocket-auth open decision: the SDK sends an
+`Authorization` header and no subprotocol, so neither branch of that contingency
+applies (D-008).
+
+**Honesty guard:** the upstream self-identifies in `SessionMetadata.implementation`;
+BYOM labels those receipts `origin: "reference"`, never `"api"`, with a note that
+the figures aren't API-reported. Asserted by test. It also reproduces both PRD §5.3
+audio defects on purpose, so BYOM's trim and normalize-warning behaviour is
+demonstrated rather than only unit-tested.

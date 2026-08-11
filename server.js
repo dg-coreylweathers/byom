@@ -133,9 +133,22 @@ export function createApp({ env = process.env, now = () => Date.now(), clientFac
       // Which number came from where. PRD §5.2/§5.4: the receipt reads from
       // SpeechMetadata.billable_character_count and says explicitly when it
       // cannot. `origin` is what the UI renders that disclosure from.
+      //
+      // A reference upstream self-identifies in SessionMetadata. When it does, the
+      // frames are protocol-real but the numbers are not API-reported, so they are
+      // labelled `reference` — never `api`. Same principle PRD §3 applies to the
+      // batch fallback: a figure that did not come from the API is marked, not
+      // quietly displayed.
+      const upstreamOrigin = result.implementation ? "reference" : "api";
       const billed =
         result.billable !== null
-          ? { value: result.billable, origin: "api", note: null }
+          ? {
+              value: result.billable,
+              origin: upstreamOrigin,
+              note: result.implementation
+                ? `Reported by ${result.implementation}, not by the API. Protocol-accurate; not a real synthesis.`
+                : null,
+            }
           : {
               value: mirror.billed,
               origin: "local",
@@ -143,9 +156,12 @@ export function createApp({ env = process.env, now = () => Date.now(), clientFac
             };
 
       const serverStripped = result.stripped;
+      // When the mirror found nothing either, the missing Warning frame is the
+      // server confirming nothing was stripped — not a gap we had to paper over.
+      const nothingToStrip = serverStripped === null && mirror.stripped.length === 0;
       const inventory =
-        serverStripped !== null
-          ? { entries: serverStripped, origin: "api" }
+        serverStripped !== null || nothingToStrip
+          ? { entries: serverStripped ?? [], origin: upstreamOrigin }
           : {
               entries: mirror.stripped.map((s) => ({
                 raw: s.raw,
@@ -185,6 +201,9 @@ export function createApp({ env = process.env, now = () => Date.now(), clientFac
         warnings: result.warnings,
         wire: result.wire,
         voice: voiceResult.voice,
+        // Non-null means the report came from a reference upstream. The UI renders
+        // a persistent banner from this; it is never omitted or made dismissible.
+        upstream: result.implementation,
       });
     } catch (err) {
       // The message may describe a transport failure, and an upstream failure can
@@ -245,9 +264,15 @@ export function describeDisagreement(mirror, serverStripped, serverBillable) {
   const notes = [];
 
   if (serverStripped === null) {
-    notes.push(
-      "The server did not report a stripped inventory, so the list below is the local mirror's.",
-    );
+    // No Warning frame arrived. That is only a disagreement if the mirror expected
+    // one: when the text contained no markup there is nothing to warn about, and
+    // the absence of a warning IS the server agreeing that nothing was stripped.
+    // Treating silence as a failure here produced a spurious flag on clean text.
+    if (mirror.stripped.length > 0) {
+      notes.push(
+        "The server did not report a stripped inventory, so the list below is the local mirror's.",
+      );
+    }
   } else {
     if (serverStripped.length !== mirror.stripped.length) {
       notes.push(

@@ -89,6 +89,64 @@ diagnostic.
 
 ---
 
+## W-004 — Binary audio arrives as a `Blob` under Node, undocumented and async-only
+
+**File:** `lib/flux.js` (`isBinaryFrame`, `byteLengthOf`, `toBuffer`)
+
+**Gap.** `setupBinaryHandling` (`CustomClient.ts:969-1002`) passes non-string
+`event.data` through untouched. Under Node that turns out to be a **`Blob`** —
+confirmed empirically against the reference upstream: 11 of 11 audio frames
+arrived as `Blob`, never Buffer or ArrayBuffer. Nothing in the typed surface says
+so, and `SpeakV2Socket`'s message type does not model binary frames at all.
+
+**Why it is worth a permanent entry.** This fails in a genuinely dangerous way.
+`Blob.type` is the empty string, so any control-frame check of the form
+`typeof msg.type === "string"` classifies audio as a control frame. The PCM is
+dropped, no error is raised, and the report still renders — with a 44-byte
+header-only WAV. A receipt that looks complete and contains no audio is a worse
+outcome than a crash, and for this tool specifically it would undermine the exact
+claim it exists to make.
+
+**Workaround.** `isBinaryFrame()` checks Blob first, then Buffer / ArrayBuffer /
+ArrayBuffer view, and the check runs *before* any control-frame handling.
+`byteLengthOf()` reads `Blob.size` synchronously so the wire log needs no await.
+Frames are pushed to the queue unconverted and normalized in `finish()` via
+`Promise.all`, because `Blob.arrayBuffer()` is async and converting inline could
+reorder audio. Two regression tests cover the classification and the ordering.
+
+**Before removing, check release notes for:** a typed binary-message channel on
+the v2 speak socket, a documented `binaryType`, or a normalization helper that
+hands back Buffers. Until then, keep accepting all four shapes — guessing wrong
+loses audio silently rather than erroring.
+
+---
+
+## W-005 — `sendSpeak`/`sendFlush` do not set the `type` discriminator
+
+**File:** `lib/flux.js` (the `open` handler)
+
+**Gap.** Not an SDK defect — a JS-caller trap worth recording because it cost
+real debugging time here. `sendSpeak()` and `sendFlush()` pass their argument
+straight to `sendJson()` without injecting `type`
+(`.../speak/resources/v2/client/Socket.ts:75-83`). `type` is a required field of
+`SpeakV2Speak` / `SpeakV2Flush`, so TypeScript enforces it — but this project is
+plain JS, where nothing does.
+
+**How it fails.** Silently and confusingly. `socket.sendSpeak({ text })` opens
+fine, the server accepts the frame, and it replies with `NO_ACTIVE_SPEECH`
+"unhandled message type" warnings instead of synthesizing. There is no error and
+no `Flushed`, so the turn simply never completes and the call times out. The
+symptom (a timeout) points nowhere near the cause (a missing string field).
+
+**Workaround.** Send `{ type: "Speak", text }` and `{ type: "Flush" }` explicitly,
+and send the *same object* that is written to the wire log so the two cannot
+drift.
+
+**Before removing:** nothing to remove. Revisit only if the SDK starts injecting
+the discriminator, at which point passing it explicitly stays harmless.
+
+---
+
 ## W-003 — Voice catalog is typed but the shipping set is unverified against WER guidance
 
 **File:** `lib/voices.js`

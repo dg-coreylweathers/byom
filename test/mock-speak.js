@@ -13,6 +13,15 @@
  * which is exactly what needs exercising.
  */
 
+/** Mirrors the binary shapes `lib/flux.js` accepts, so the mock cannot diverge. */
+function isBinaryLike(value) {
+  if (value === null || typeof value !== "object") return false;
+  if (typeof Blob !== "undefined" && value instanceof Blob) return true;
+  if (Buffer.isBuffer(value)) return true;
+  if (value instanceof ArrayBuffer) return true;
+  return ArrayBuffer.isView(value);
+}
+
 /** 16-bit PCM: `leadingSilenceMs` of digital silence, then a tone. */
 export function makePcm({ sampleRate = 24000, leadingSilenceMs = 350, toneMs = 400, peak = 32767 } = {}) {
   const silent = Math.round((leadingSilenceMs / 1000) * sampleRate);
@@ -74,7 +83,11 @@ export function mockClientFactory({ frames, pcm, onConnect } = {}) {
                   emit("open");
                   for (const frame of script) {
                     if (closed) return;
-                    if (Buffer.isBuffer(frame)) emit("message", frame);
+                    // Any binary shape passes through untouched — the real SDK
+                    // delivers Blob under Node, and stringifying one yields "{}",
+                    // which would silently turn audio into an empty control frame
+                    // and make this mock test something the server never sees.
+                    if (isBinaryLike(frame)) emit("message", frame);
                     else emit("message", JSON.stringify(frame));
                   }
                 });

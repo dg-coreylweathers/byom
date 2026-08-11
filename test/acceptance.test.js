@@ -320,6 +320,54 @@ test("the wire log shows frames verbatim in protocol order", async (t) => {
   assert.equal(audio.frame, null);
 });
 
+test("audio delivered as a Blob is treated as audio, not as a control frame", async (t) => {
+  // The SDK delivers binary audio as a Blob under Node. Blob.type is "", so a
+  // control-frame check that only looks for a `type` string silently swallows the
+  // PCM and yields a header-only WAV that still looks like a complete report.
+  const pcm = makePcm({ leadingSilenceMs: 0, toneMs: 120 });
+  const frames = [
+    { type: "Connected" },
+    { type: "SessionMetadata", sample_rate: 24000 },
+    new Blob([pcm]),
+    { type: "Flushed" },
+  ];
+  const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
+  const { body } = await c.post("/api/speak", { text: "hello" });
+
+  const audioFrames = body.wire.filter((e) => e.binary);
+  assert.equal(audioFrames.length, 1, "the Blob must be logged as a binary audio frame");
+  assert.ok(audioFrames[0].bytes > 0, "and its byte count must be known");
+
+  // A header-only WAV is 44 bytes; real audio is much larger.
+  const wav = Buffer.from(body.audio.wav, "base64");
+  assert.ok(wav.length > 1000, `expected PCM to survive, got ${wav.length} bytes`);
+});
+
+test("multiple Blob frames keep their arrival order", async (t) => {
+  // Blob extraction is async; order must come from arrival, not resolution.
+  const sampleRate = 24000;
+  const mk = (value, ms) => {
+    const n = Math.round((ms / 1000) * sampleRate);
+    const s = new Int16Array(n).fill(value);
+    return new Blob([Buffer.from(s.buffer, s.byteOffset, s.length * 2)]);
+  };
+  const frames = [
+    { type: "Connected" },
+    { type: "SessionMetadata", sample_rate: sampleRate },
+    mk(1000, 40),
+    mk(20000, 40),
+    { type: "Flushed" },
+  ];
+  const c = await withServer(t, { clientFactory: mockClientFactory({ frames }) });
+  const { body } = await c.post("/api/speak", { text: "hello" });
+
+  const wav = Buffer.from(body.audio.wav, "base64");
+  const pcm = wav.subarray(44);
+  // First segment quiet, second loud — reversed order would flip these.
+  assert.equal(pcm.readInt16LE(0), 1000, "first frame must come first");
+  assert.equal(pcm.readInt16LE(pcm.length - 2), 20000, "last frame must come last");
+});
+
 test("an unrecognized frame still reaches the log", async (t) => {
   const frames = [
     { type: "Connected" },
