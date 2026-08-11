@@ -1,0 +1,17 @@
+{
+  "name": "byom",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Bring Your Own Markup — paste a prompt with markup in it, get back what was stripped, what it cost, and clean audio.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^5.7.0"
+  }
+}

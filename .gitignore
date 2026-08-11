@@ -1,0 +1,13 @@
+node_modules/
+
+# Never commit credentials or environment files. The hard constraint is that the
+# API key never lands in git history or a build artifact, so .env is ignored
+# before the first commit rather than after — a key removed in a later commit is
+# still in history.
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+fly.toml.local
